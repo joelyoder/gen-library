@@ -29,3 +29,18 @@ export async function getImage(id: number) {
   const { data } = await api.get(`/api/images/${id}`)
   return data
 }
+
+export async function getLibraryFolder() {
+  const { data } = await api.get('/api/settings/libraryFolder')
+  return data
+}
+
+export async function setLibraryFolder(path: string) {
+  const { data } = await api.put('/api/settings/libraryFolder', { path })
+  return data
+}
+
+export async function importLibrary() {
+  const { data } = await api.post('/api/settings/import')
+  return data
+}
