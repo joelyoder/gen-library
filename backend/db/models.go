@@ -50,8 +50,13 @@ type ImageTag struct {
 }
 
 type UserMetadata struct {
-	ID      uint   `gorm:"primaryKey"`
-	ImageID uint   `gorm:"index;not null"`
-	Key     string `gorm:"not null"`
-	Value   string `gorm:"not null"`
+        ID      uint   `gorm:"primaryKey"`
+        ImageID uint   `gorm:"index;not null"`
+        Key     string `gorm:"not null"`
+        Value   string `gorm:"not null"`
+}
+
+type Setting struct {
+       Key   string `gorm:"primaryKey"`
+       Value string `gorm:"not null"`
 }
