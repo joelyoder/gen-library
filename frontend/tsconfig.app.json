@@ -2,11 +2,6 @@
   "extends": "@vue/tsconfig/tsconfig.dom.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    "target": "ESNext",
-    "module": "ESNext",         // ✅ must be ES2020 or later
-    "moduleResolution": "Node", // or "Bundler" in newer TS versions
-    "lib": ["ESNext", "DOM"],
-    "types": ["vite/client"],    // ✅ so TS knows about import.meta.env
 
     /* Linting */
     "strict": true,
