@@ -1,6 +1,10 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: 'http://localhost:8080' })
+// falls back to 8081 if env missing
+const base = import.meta.env.VITE_API_BASE || 'http://localhost:8081'
+const api = axios.create({ baseURL: base })
+
+export default api
 
 export interface ListParams {
   page?: number
