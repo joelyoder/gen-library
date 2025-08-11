@@ -11,6 +11,9 @@
       />
     </div>
     <div class="col-12 col-lg-9">
+      <div class="d-flex justify-content-end mb-2">
+        <button class="btn btn-sm btn-secondary" @click="onScan">Scan Library</button>
+      </div>
       <ImageGrid :images="items" />
       <Pager :page="page" :page-size="pageSize" :total="total" @change="onPage" />
     </div>
@@ -19,7 +22,7 @@
 
 <script setup lang="ts">
 import { ref, watchEffect } from 'vue'
-import { listImages } from '../api'
+import { listImages, scanLibrary } from '../api'
 import SidebarFilters from '../components/SidebarFilters.vue'
 import ImageGrid from '../components/ImageGrid.vue'
 import Pager from '../components/Pager.vue'
@@ -41,6 +44,11 @@ function reload() {
 
 function onPage(newPage: number) {
   page.value = newPage
+}
+
+async function onScan() {
+  await scanLibrary()
+  reload()
 }
 
 watchEffect(async () => {
