@@ -12,5 +12,5 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{ image: any }>()
+defineProps<{ image: any }>()
 </script>

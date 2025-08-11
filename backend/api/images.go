@@ -1,6 +1,8 @@
 package api
 
 import (
+	"errors"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -10,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"gen-library/backend/db"
+	"gen-library/backend/scan"
 )
 
 type imageDTO struct {
@@ -219,12 +222,33 @@ func scanFolder(gdb *gorm.DB) gin.HandlerFunc {
 		var body struct {
 			Root string `json:"root"`
 		}
-		if err := c.BindJSON(&body); err != nil {
+		if err := c.ShouldBindJSON(&body); err != nil && !errors.Is(err, io.EOF) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		// Stub for now
-		c.JSON(http.StatusOK, gin.H{"status": "scan scheduled", "root": body.Root})
+		root := body.Root
+		if root == "" {
+			var s db.Setting
+			if err := gdb.First(&s, "key = ?", "library_path").Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "library path not set"})
+				} else {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				}
+				return
+			}
+			root = s.Value
+		}
+		if root == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "no root provided"})
+			return
+		}
+		n, err := scan.ScanFolder(gdb, root)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"count": n})
 	}
 }
 
