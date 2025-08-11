@@ -39,7 +39,7 @@ export async function setLibraryPath(path: string) {
   await api.put('/api/settings/library_path', { value: path })
 }
 
-export async function scanLibrary() {
-  const { data } = await api.post('/api/scan')
+export async function scanLibrary(root?: string) {
+  const { data } = await api.post('/api/scan', root ? { root } : undefined)
   return data
 }

@@ -22,7 +22,11 @@ onMounted(async () => {
 })
 
 async function save() {
-  await setLibraryPath(path.value)
+  if (!path.value.trim()) {
+    alert('Please enter a folder path')
+    return
+  }
+  await setLibraryPath(path.value.trim())
   alert('Saved')
 }
 </script>
