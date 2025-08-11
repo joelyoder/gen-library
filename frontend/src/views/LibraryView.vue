@@ -22,7 +22,7 @@
 
 <script setup lang="ts">
 import { ref, watchEffect } from 'vue'
-import { listImages, scanLibrary } from '../api'
+import { listImages, scanLibrary, getLibraryPath } from '../api'
 import SidebarFilters from '../components/SidebarFilters.vue'
 import ImageGrid from '../components/ImageGrid.vue'
 import Pager from '../components/Pager.vue'
@@ -47,7 +47,12 @@ function onPage(newPage: number) {
 }
 
 async function onScan() {
-  await scanLibrary()
+  const root = await getLibraryPath()
+  if (!root) {
+    alert('Please set a library path in Settings first')
+    return
+  }
+  await scanLibrary(root)
   reload()
 }
 
