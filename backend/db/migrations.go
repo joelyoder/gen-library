@@ -48,15 +48,19 @@ func ApplyMigrations(gdb *gorm.DB) error {
 			FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE,
 			FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
 		);`,
-		`CREATE TABLE IF NOT EXISTS user_metadata (
-			id INTEGER PRIMARY KEY,
-			image_id INTEGER NOT NULL,
-			key TEXT NOT NULL,
-			value TEXT NOT NULL,
-			UNIQUE(image_id, key),
-			FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
-		);`,
-		// Indexes
+                `CREATE TABLE IF NOT EXISTS user_metadata (
+                        id INTEGER PRIMARY KEY,
+                        image_id INTEGER NOT NULL,
+                        key TEXT NOT NULL,
+                        value TEXT NOT NULL,
+                        UNIQUE(image_id, key),
+                        FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
+                );`,
+               `CREATE TABLE IF NOT EXISTS settings (
+                       key TEXT PRIMARY KEY,
+                       value TEXT NOT NULL
+               );`,
+                // Indexes
 		`CREATE INDEX IF NOT EXISTS images_nsfw_idx ON images(nsfw);`,
 		`CREATE INDEX IF NOT EXISTS images_model_idx ON images(model_name);`,
 		`CREATE INDEX IF NOT EXISTS image_tags_image_idx ON image_tags(image_id);`,

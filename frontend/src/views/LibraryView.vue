@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watchEffect } from 'vue'
+import { ref, watchEffect, onMounted, onUnmounted } from 'vue'
 import { listImages } from '../api'
 import SidebarFilters from '../components/SidebarFilters.vue'
 import ImageGrid from '../components/ImageGrid.vue'
@@ -55,5 +55,13 @@ watchEffect(async () => {
   })
   items.value = data.items
   total.value = data.total
+})
+
+onMounted(() => {
+  window.addEventListener('library-updated', reload)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('library-updated', reload)
 })
 </script>
