@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watchEffect } from 'vue'
+import { ref, watchEffect, onMounted, onUnmounted } from 'vue'
 import { listImages } from '../api'
 import SidebarFilters from '../components/SidebarFilters.vue'
 import ImageGrid from '../components/ImageGrid.vue'
@@ -35,15 +35,7 @@ const order = ref<'asc'|'desc'>('desc')
 const items = ref<any[]>([])
 const total = ref(0)
 
-function reload() {
-  page.value = 1
-}
-
-function onPage(newPage: number) {
-  page.value = newPage
-}
-
-watchEffect(async () => {
+async function load() {
   const data = await listImages({
     page: page.value,
     pageSize: pageSize.value,
@@ -55,5 +47,19 @@ watchEffect(async () => {
   })
   items.value = data.items
   total.value = data.total
-})
+}
+
+function reload() {
+  page.value = 1
+  load()
+}
+
+function onPage(newPage: number) {
+  page.value = newPage
+}
+
+watchEffect(load)
+
+onMounted(() => window.addEventListener('library-updated', reload))
+onUnmounted(() => window.removeEventListener('library-updated', reload))
 </script>

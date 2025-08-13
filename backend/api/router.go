@@ -15,5 +15,8 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 		api.DELETE("/images/:id/tags", removeTags(db))
 		api.DELETE("/images/:id", deleteImage(db))
 		api.POST("/scan", scanFolder(db))
+		api.GET("/settings/libraryFolder", getLibraryFolder(db))
+		api.PUT("/settings/libraryFolder", setLibraryFolder(db))
+		api.POST("/settings/import", importLibrary(db))
 	}
 }
