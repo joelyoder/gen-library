@@ -14,7 +14,7 @@
       <div class="d-flex justify-content-end mb-2">
         <button class="btn btn-sm btn-secondary" @click="onScan">Scan Library</button>
       </div>
-      <ImageGrid :images="items" />
+      <ImageGrid :images="items" @deleted="onDeleted" />
       <Pager :page="page" :page-size="pageSize" :total="total" @change="onPage" />
     </div>
   </div>
@@ -56,6 +56,10 @@ async function onScan() {
   reload()
 }
 
+function onDeleted(id: number) {
+  items.value = items.value.filter(img => img.id !== id)
+}
+
 watchEffect(async () => {
   const data = await listImages({
     page: page.value,
@@ -70,3 +74,4 @@ watchEffect(async () => {
   total.value = data.total
 })
 </script>
+

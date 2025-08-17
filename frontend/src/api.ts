@@ -45,3 +45,7 @@ export async function scanLibrary(root?: string) {
   const { data } = await api.post('/api/scan', root ? { root } : undefined)
   return data
 }
+
+export async function deleteImage(id: number, mode: 'trash' | 'hard' = 'trash') {
+  await api.delete(`/api/images/${id}`, { params: { mode } })
+}
