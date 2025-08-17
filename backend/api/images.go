@@ -68,9 +68,9 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 		// NSFW filter
 		switch nsfwMode {
 		case "hide":
-			img = img.Where("nsfw = 0")
+			img = img.Where("images.nsfw = 0")
 		case "only":
-			img = img.Where("nsfw = 1")
+			img = img.Where("images.nsfw = 1")
 		}
 
 		// FTS join if q
@@ -98,8 +98,8 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 
 		// Select page
 		rows := []imageDTO{}
-		qimg := img.Order(sort + " " + strings.ToUpper(order)).
-			Select("id, path, file_name, ext, width, height, model_name, prompt, nsfw").
+		qimg := img.Order("images." + sort + " " + strings.ToUpper(order)).
+			Select("images.id, images.path, images.file_name, images.ext, images.width, images.height, images.model_name, images.prompt, images.nsfw").
 			Limit(pageSize).Offset((page - 1) * pageSize)
 
 		if err := qimg.Scan(&rows).Error; err != nil {
