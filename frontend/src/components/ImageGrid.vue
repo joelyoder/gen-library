@@ -1,7 +1,7 @@
 <template>
   <div class="masonry" :style="{ columnCount }">
     <div v-for="img in images" :key="img.id" class="mb-3 break-inside-avoid">
-      <ImageCard :image="img" />
+      <ImageCard :image="img" @deleted="emit('deleted', $event)" />
     </div>
   </div>
 </template>
@@ -10,6 +10,7 @@
 import ImageCard from './ImageCard.vue'
 
 defineProps<{ images: any[] }>()
+const emit = defineEmits(['deleted'])
 
 const columnCount = Math.max(1, Math.min(5, Math.floor(window.innerWidth / 320)))
 </script>
@@ -18,3 +19,4 @@ const columnCount = Math.max(1, Math.min(5, Math.floor(window.innerWidth / 320))
 .masonry { column-gap: 1rem; }
 .break-inside-avoid { break-inside: avoid; }
 </style>
+
