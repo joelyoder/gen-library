@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: 'http://localhost:8080' })
+// Backend now defaults to port 8081, so point axios there
+const api = axios.create({ baseURL: 'http://localhost:8081' })
 
 export interface ListParams {
   page?: number
@@ -39,7 +40,7 @@ export async function setLibraryPath(path: string) {
   await api.put('/api/settings/library_path', { value: path })
 }
 
-export async function scanLibrary() {
-  const { data } = await api.post('/api/scan')
+export async function scanLibrary(root?: string) {
+  const { data } = await api.post('/api/scan', { root })
   return data
 }
