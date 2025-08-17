@@ -29,3 +29,17 @@ export async function getImage(id: number) {
   const { data } = await api.get(`/api/images/${id}`)
   return data
 }
+
+export async function getLibraryPath(): Promise<string> {
+  const { data } = await api.get('/api/settings/library_path')
+  return data.value ?? ''
+}
+
+export async function setLibraryPath(path: string) {
+  await api.put('/api/settings/library_path', { value: path })
+}
+
+export async function scanLibrary(root?: string) {
+  const { data } = await api.post('/api/scan', root ? { root } : undefined)
+  return data
+}
