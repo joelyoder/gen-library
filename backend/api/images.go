@@ -237,15 +237,35 @@ func deleteImage(gdb *gorm.DB) gin.HandlerFunc {
 				return err
 			}
 
+			// Resolve the file path against the configured library
+			// root (if any) and ensure we work with an absolute
+			// path. This avoids platform specific resolution issues
+			// when moving files to the trash. If any of the
+			// conversions fail, propagate the error so the
+			// transaction is rolled back and surfaced to the
+			// caller.
+			absPath := img.Path
+			var root string
+			if err := tx.Table("settings").Select("value").Where("key=?", "library_path").Scan(&root).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+			if root != "" && !filepath.IsAbs(absPath) {
+				absPath = filepath.Join(root, absPath)
+			}
+			absPath, err := filepath.Abs(absPath)
+			if err != nil {
+				return err
+			}
+
 			switch mode {
 			case "trash":
-				return moveToTrash(img.Path)
+				return moveToTrash(absPath)
 			case "hard":
 				expected := fmt.Sprintf("%d", img.ID)
 				if token != expected {
 					return fmt.Errorf("invalid token")
 				}
-				return os.Remove(img.Path)
+				return os.Remove(absPath)
 			default:
 				return fmt.Errorf("unknown mode")
 			}
@@ -273,8 +293,12 @@ func moveToTrash(path string) error {
 	switch runtime.GOOS {
 	case "windows":
 		cmd := exec.Command("powershell", "-NoProfile", "-Command",
-			fmt.Sprintf(`Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile(%q,'OnlyErrorDialogs','SendToRecycleBin')`, path))
-		return cmd.Run()
+			fmt.Sprintf(`Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile(%q, [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs, [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin)`, path))
+		// Capture stdout/stderr so any PowerShell errors are surfaced to the caller.
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("powershell recycle failed: %v: %s", err, strings.TrimSpace(string(out)))
+		}
+		return nil
 	case "darwin":
 		script := fmt.Sprintf(`tell application \"Finder\" to delete POSIX file %q`, path)
 		cmd := exec.Command("osascript", "-e", script)
