@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 
 	"gen-library/backend/db"
 	"gen-library/backend/scan"
+	"gen-library/backend/util"
 )
 
 type imageDTO struct {
@@ -99,11 +101,16 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-
+		var root string
+		gdb.Table("settings").Select("value").Where("key=?", "library_path").Scan(&root)
 		for i := range rows {
-			// Derive SHA to form thumb URL; get by extra query (lightweight)
 			var sha string
 			if err := gdb.Table("images").Select("sha256").Where("id=?", rows[i].ID).Scan(&sha).Error; err == nil && sha != "" {
+				src := rows[i].Path
+				if root != "" && !filepath.IsAbs(src) {
+					src = filepath.Join(root, src)
+				}
+				_, _ = util.EnsureThumb(sha, src, 400)
 				rows[i].ThumbURL = "/thumbs/" + sha + "_400.jpg"
 			}
 		}
