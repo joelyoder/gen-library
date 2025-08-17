@@ -2,12 +2,17 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -208,19 +213,105 @@ func removeTags(gdb *gorm.DB) gin.HandlerFunc {
 func deleteImage(gdb *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
-		var path string
-		if err := gdb.Table("images").Select("path").Where("id=?", id).Scan(&path).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		mode := strings.ToLower(c.DefaultQuery("mode", "trash"))
+
+		var token string
+		if mode == "hard" {
+			var body struct {
+				Token string `json:"token"`
+			}
+			if err := c.ShouldBindJSON(&body); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			token = body.Token
+		}
+
+		err := gdb.Transaction(func(tx *gorm.DB) error {
+			var img db.Image
+			if err := tx.First(&img, id).Error; err != nil {
+				return err
+			}
+
+			if err := tx.Delete(&db.Image{}, id).Error; err != nil {
+				return err
+			}
+
+			switch mode {
+			case "trash":
+				return moveToTrash(img.Path)
+			case "hard":
+				expected := fmt.Sprintf("%d", img.ID)
+				if token != expected {
+					return fmt.Errorf("invalid token")
+				}
+				return os.Remove(img.Path)
+			default:
+				return fmt.Errorf("unknown mode")
+			}
+		})
+
+		if err != nil {
+			switch {
+			case errors.Is(err, gorm.ErrRecordNotFound):
+				c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			case strings.Contains(err.Error(), "invalid token"):
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			case strings.Contains(err.Error(), "unknown mode"):
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			default:
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			}
 			return
 		}
-		// Hard delete for MVP
-		if err := gdb.Delete(&db.Image{}, id).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		// Remove file best-effort
-		_ = os.Remove(path)
+
 		c.JSON(http.StatusOK, gin.H{"ok": true})
+	}
+}
+
+func moveToTrash(path string) error {
+	switch runtime.GOOS {
+	case "windows":
+		cmd := exec.Command("powershell", "-NoProfile", "-Command",
+			fmt.Sprintf(`Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile(%q,'OnlyErrorDialogs','SendToRecycleBin')`, path))
+		return cmd.Run()
+	case "darwin":
+		script := fmt.Sprintf(`tell application \"Finder\" to delete POSIX file %q`, path)
+		cmd := exec.Command("osascript", "-e", script)
+		return cmd.Run()
+	default: // freedesktop trash spec
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			return err
+		}
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		filesDir := filepath.Join(home, ".local/share/Trash/files")
+		infoDir := filepath.Join(home, ".local/share/Trash/info")
+		if err := os.MkdirAll(filesDir, 0o755); err != nil {
+			return err
+		}
+		if err := os.MkdirAll(infoDir, 0o755); err != nil {
+			return err
+		}
+		base := filepath.Base(abs)
+		dest := filepath.Join(filesDir, base)
+		for i := 1; ; i++ {
+			if _, err := os.Stat(dest); os.IsNotExist(err) {
+				break
+			}
+			dest = filepath.Join(filesDir, fmt.Sprintf("%s.%d", base, i))
+		}
+		if err := os.Rename(abs, dest); err != nil {
+			return err
+		}
+		infoPath := filepath.Join(infoDir, filepath.Base(dest)+".trashinfo")
+		u := url.PathEscape(abs)
+		ts := time.Now().Format("2006-01-02T15:04:05")
+		content := fmt.Sprintf("[Trash Info]\nPath=%s\nDeletionDate=%s\n", u, ts)
+		return os.WriteFile(infoPath, []byte(content), 0o644)
 	}
 }
 
