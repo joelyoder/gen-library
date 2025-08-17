@@ -41,6 +41,6 @@ export async function setLibraryPath(path: string) {
 }
 
 export async function scanLibrary(root?: string) {
-  const { data } = await api.post('/api/scan', { root })
+  const { data } = await api.post('/api/scan', root ? { root } : undefined)
   return data
 }
