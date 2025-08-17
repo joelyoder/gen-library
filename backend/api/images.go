@@ -171,19 +171,42 @@ func addTags(gdb *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
 		}
+
+		seen := make(map[string]struct{})
 		for _, name := range body.Tags {
 			name = strings.TrimSpace(name)
 			if name == "" {
 				continue
 			}
-			var t db.Tag
-			if err := gdb.Where("name=?", name).First(&t).Error; err != nil {
-				// create if not exists
-				gdb.Create(&db.Tag{Name: name})
-				gdb.Where("name=?", name).First(&t)
+			if _, ok := seen[name]; ok {
+				continue
 			}
-			gdb.Create(&db.ImageTag{ImageID: image.ID, TagID: t.ID})
+			seen[name] = struct{}{}
+
+			var t db.Tag
+			if err := gdb.Where("name = ?", name).First(&t).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					if err := gdb.Create(&db.Tag{Name: name}).Error; err != nil {
+						c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+						return
+					}
+					if err := gdb.Where("name = ?", name).First(&t).Error; err != nil {
+						c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+						return
+					}
+				} else {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+			}
+
+			rel := db.ImageTag{ImageID: image.ID, TagID: t.ID}
+			if err := gdb.FirstOrCreate(&rel, rel).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
 		}
+
 		getImage(gdb)(c)
 	}
 }
@@ -203,9 +226,45 @@ func removeTags(gdb *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
 		}
-		if len(body.Tags) > 0 {
-			gdb.Exec(`DELETE FROM image_tags WHERE image_id = ? AND tag_id IN (SELECT id FROM tags WHERE name IN ?)`, image.ID, body.Tags)
+
+		seen := make(map[string]struct{})
+		for _, name := range body.Tags {
+			name = strings.TrimSpace(name)
+			if name == "" {
+				continue
+			}
+			if _, ok := seen[name]; ok {
+				continue
+			}
+			seen[name] = struct{}{}
+
+			var t db.Tag
+			if err := gdb.Where("name = ?", name).First(&t).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					continue
+				}
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			if err := gdb.Where("image_id = ? AND tag_id = ?", image.ID, t.ID).Delete(&db.ImageTag{}).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			var count int64
+			if err := gdb.Model(&db.ImageTag{}).Where("tag_id = ?", t.ID).Count(&count).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			if count == 0 {
+				if err := gdb.Delete(&db.Tag{}, t.ID).Error; err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+			}
 		}
+
 		getImage(gdb)(c)
 	}
 }
