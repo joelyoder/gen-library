@@ -9,7 +9,7 @@
 <script setup lang="ts">
 import ImageCard from './ImageCard.vue'
 
-const props = defineProps<{ images: any[] }>()
+defineProps<{ images: any[] }>()
 
 const columnCount = Math.max(1, Math.min(5, Math.floor(window.innerWidth / 320)))
 </script>
