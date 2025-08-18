@@ -9,11 +9,14 @@
         <label class="form-label">Model Hash</label>
         <input class="form-control" v-model="form.modelHash" />
       </div>
-      <div v-if="props.image.loras && props.image.loras.length" class="mb-3">
+      <div class="mb-3">
         <label class="form-label">Loras</label>
-        <ul class="mb-0">
-          <li v-for="l in props.image.loras" :key="l.name">{{ l.name }} ({{ l.hash }})</li>
-        </ul>
+        <div v-for="(l, i) in loras" :key="i" class="input-group mb-1">
+          <input class="form-control" placeholder="Name" v-model="l.name" />
+          <input class="form-control" placeholder="Hash" v-model="l.hash" />
+          <button class="btn btn-outline-danger" type="button" @click="removeLora(i)">&times;</button>
+        </div>
+        <button class="btn btn-outline-primary btn-sm" type="button" @click="addLora">Add Lora</button>
       </div>
       <div class="mb-3">
         <label class="form-label">Prompt</label>
@@ -98,6 +101,7 @@ const form = reactive({
 })
 
 const tags = ref<string[]>([])
+const loras = ref<{ name: string, hash: string }[]>([])
 const rawOpen = ref(false)
 
 watch(() => props.image, (img) => {
@@ -113,6 +117,7 @@ watch(() => props.image, (img) => {
   form.clipSkip = img?.clipSkip ?? ''
   form.sourceApp = img?.sourceApp ?? ''
   tags.value = img?.tags?.map((t: any) => t.name) ?? []
+  loras.value = img?.loras?.map((l: any) => ({ name: l.name, hash: l.hash })) ?? []
   rawOpen.value = false
 }, { immediate: true })
 
@@ -136,10 +141,19 @@ async function onSave() {
     seed: form.seed || null,
     scheduler: form.scheduler || null,
     clipSkip: form.clipSkip !== '' ? Number(form.clipSkip) : null,
-    sourceApp: form.sourceApp || null
+    sourceApp: form.sourceApp || null,
+    loras: loras.value.filter(l => l.name || l.hash)
   }
   await updateImageMetadata(props.image.id, payload)
   emit('saved')
+}
+
+function addLora() {
+  loras.value.push({ name: '', hash: '' })
+}
+
+function removeLora(i: number) {
+  loras.value.splice(i, 1)
 }
 </script>
 
