@@ -25,10 +25,7 @@
         <div class="modal-content bg-dark text-light">
           <div class="modal-header">
             <h5 class="modal-title">{{ selectedImage?.fileName }}</h5>
-            <div class="d-flex gap-2">
-              <button class="btn btn-outline-danger" @click="onDeleteSelected">Delete</button>
-              <button type="button" class="btn-close btn-close-white" @click="closeMetadata"></button>
-            </div>
+            <button type="button" class="btn-close btn-close-white" @click="closeMetadata"></button>
           </div>
           <div class="modal-body p-0">
             <div class="row g-0 h-100">
@@ -41,10 +38,14 @@
                 />
               </div>
               <div class="col-md-4 overflow-auto p-3" v-if="selectedImage">
+                <div class="d-flex justify-content-end mb-3">
+                  <button class="btn btn-outline-danger" @click="onDeleteSelected">Delete</button>
+                </div>
                 <MetadataPanel
                   v-if="metadataEditing"
                   :image="selectedImage"
                   @saved="onMetadataSaved"
+                  @cancel="metadataEditing = false"
                 />
                 <div v-else>
                   <MetadataDisplay :image="selectedImage" @edit="metadataEditing = true" />
