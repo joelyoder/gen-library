@@ -49,3 +49,18 @@ export async function scanLibrary(root?: string) {
 export async function deleteImage(id: number, mode: 'trash' | 'hard' = 'trash') {
   await api.delete(`/api/images/${id}`, { params: { mode } })
 }
+
+export async function updateImageMetadata(id: number, metadata: any) {
+  const { data } = await api.put(`/api/images/${id}/metadata`, metadata)
+  return data
+}
+
+export async function addTags(id: number, tags: string[]) {
+  const { data } = await api.post(`/api/images/${id}/tags`, { tags })
+  return data
+}
+
+export async function removeTags(id: number, tags: string[]) {
+  const { data } = await api.delete(`/api/images/${id}/tags`, { data: { tags } })
+  return data
+}
