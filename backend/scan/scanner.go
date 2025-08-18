@@ -108,6 +108,12 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	// Parse generation parameters if present
 	normalizeParameters(metaMap)
 
+	// Extract model hash and any loras from sui_models
+	modelHash, loras := extractModels(metaMap)
+	if modelHash != "" && metaMap["model hash"] == "" {
+		metaMap["model hash"] = modelHash
+	}
+
 	// Prepare Image model
 	rel, err := filepath.Rel(root, path)
 	if err != nil {
@@ -122,6 +128,7 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 		SizeBytes: size,
 		SHA256:    sha,
 		NSFW:      checkNSFW(metaMap, dName(path)),
+		Loras:     loras,
 	}
 	if width > 0 {
 		img.Width = &width
@@ -506,6 +513,42 @@ func normalizeParameters(meta map[string]string) {
 			meta[key] = val
 		}
 	}
+}
+
+// extractModels parses the sui_models JSON array and returns the model hash and
+// any loras used by the generation. Loras are returned as a slice of db.Lora.
+func extractModels(meta map[string]string) (string, []db.Lora) {
+	s, ok := meta["sui_models"]
+	if !ok {
+		return "", nil
+	}
+	var entries []struct {
+		Name  string `json:"name"`
+		Param string `json:"param"`
+		Hash  string `json:"hash"`
+	}
+	if err := json.Unmarshal([]byte(s), &entries); err != nil {
+		return "", nil
+	}
+	var modelHash string
+	loras := []db.Lora{}
+	for _, e := range entries {
+		name := strings.TrimSuffix(e.Name, ".safetensors")
+		switch e.Param {
+		case "model":
+			if e.Hash != "" {
+				modelHash = e.Hash
+			}
+			if name != "" && meta["model"] == "" {
+				meta["model"] = name
+			}
+		case "loras":
+			if name != "" || e.Hash != "" {
+				loras = append(loras, db.Lora{Name: name, Hash: e.Hash})
+			}
+		}
+	}
+	return modelHash, loras
 }
 
 // checkNSFW applies a simple keyword heuristic on prompts and file name.

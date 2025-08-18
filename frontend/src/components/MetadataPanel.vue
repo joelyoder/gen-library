@@ -9,6 +9,12 @@
         <label class="form-label">Model Hash</label>
         <input class="form-control" v-model="form.modelHash" />
       </div>
+      <div v-if="props.image.loras && props.image.loras.length" class="mb-3">
+        <label class="form-label">Loras</label>
+        <ul class="mb-0">
+          <li v-for="l in props.image.loras" :key="l.name">{{ l.name }} ({{ l.hash }})</li>
+        </ul>
+      </div>
       <div class="mb-3">
         <label class="form-label">Prompt</label>
         <textarea class="form-control" rows="3" v-model="form.prompt"></textarea>

@@ -132,7 +132,7 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 func getImage(gdb *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var m db.Image
-		if err := gdb.Preload("Tags").Preload("UserMeta").First(&m, c.Param("id")).Error; err != nil {
+		if err := gdb.Preload("Tags").Preload("UserMeta").Preload("Loras").First(&m, c.Param("id")).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
 		}

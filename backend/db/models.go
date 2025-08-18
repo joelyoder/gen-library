@@ -35,6 +35,7 @@ type Image struct {
 
 	RawMetadata datatypes.JSON `json:"rawMetadata"`
 
+	Loras    []Lora         `gorm:"constraint:OnDelete:CASCADE" json:"loras"`
 	Tags     []*Tag         `gorm:"many2many:image_tags;constraint:OnDelete:CASCADE" json:"tags"`
 	UserMeta []UserMetadata `gorm:"constraint:OnDelete:CASCADE" json:"userMeta"`
 }
@@ -47,6 +48,13 @@ type Tag struct {
 type ImageTag struct {
 	ImageID uint `gorm:"primaryKey" json:"imageId"`
 	TagID   uint `gorm:"primaryKey" json:"tagId"`
+}
+
+type Lora struct {
+	ID      uint   `gorm:"primaryKey" json:"id"`
+	ImageID uint   `gorm:"index;not null" json:"imageId"`
+	Name    string `json:"name"`
+	Hash    string `json:"hash"`
 }
 
 type UserMetadata struct {
