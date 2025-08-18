@@ -408,28 +408,58 @@ func extractXMP(data string, meta map[string]string) {
 // mergeJSONMeta parses any metadata values that contain JSON objects
 // and merges their key/value pairs back into the main metadata map.
 func mergeJSONMeta(meta map[string]string) {
-	for _, v := range meta {
-		v = strings.TrimSpace(v)
-		if v == "" {
-			continue
-		}
-		var obj map[string]any
-		if json.Unmarshal([]byte(v), &obj) == nil {
-			for k, val := range obj {
-				key := strings.ToLower(k)
-				switch t := val.(type) {
-				case string:
-					meta[key] = t
-				case float64:
-					meta[key] = strconv.FormatFloat(t, 'f', -1, 64)
-				case bool:
-					meta[key] = strconv.FormatBool(t)
-				default:
-					if b, err := json.Marshal(t); err == nil {
-						meta[key] = string(b)
+	// Alias certain JSON keys to match the normalized keys expected elsewhere.
+	aliases := map[string]string{
+		"negativeprompt":  "negative prompt",
+		"negative_prompt": "negative prompt",
+		"cfgscale":        "cfg scale",
+		"cfg_scale":       "cfg scale",
+		"modelhash":       "model hash",
+		"model_hash":      "model hash",
+		"clipskip":        "clip skip",
+		"clip_skip":       "clip skip",
+	}
+
+	// Keep parsing as long as we keep discovering new JSON blobs.
+	for {
+		changed := false
+		for _, v := range meta {
+			v = strings.TrimSpace(v)
+			if v == "" {
+				continue
+			}
+			var obj map[string]any
+			if json.Unmarshal([]byte(v), &obj) == nil {
+				for k, val := range obj {
+					key := strings.ToLower(k)
+					if alias, ok := aliases[key]; ok {
+						key = alias
+					}
+					var sval string
+					switch t := val.(type) {
+					case string:
+						sval = t
+					case float64:
+						sval = strconv.FormatFloat(t, 'f', -1, 64)
+					case bool:
+						sval = strconv.FormatBool(t)
+					default:
+						if b, err := json.Marshal(t); err == nil {
+							sval = string(b)
+						}
+					}
+					if sval == "" {
+						continue
+					}
+					if cur, ok := meta[key]; !ok || cur != sval {
+						meta[key] = sval
+						changed = true
 					}
 				}
 			}
+		}
+		if !changed {
+			break
 		}
 	}
 }
