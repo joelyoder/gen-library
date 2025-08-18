@@ -60,11 +60,19 @@ func ApplyMigrations(gdb *gorm.DB) error {
                        key TEXT PRIMARY KEY,
                        value TEXT NOT NULL
                );`,
+		`CREATE TABLE IF NOT EXISTS loras (
+                       id INTEGER PRIMARY KEY,
+                       image_id INTEGER NOT NULL,
+                       name TEXT NOT NULL,
+                       hash TEXT,
+                       FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
+               );`,
 		// Indexes
 		`CREATE INDEX IF NOT EXISTS images_nsfw_idx ON images(nsfw);`,
 		`CREATE INDEX IF NOT EXISTS images_model_idx ON images(model_name);`,
 		`CREATE INDEX IF NOT EXISTS image_tags_image_idx ON image_tags(image_id);`,
 		`CREATE INDEX IF NOT EXISTS image_tags_tag_idx ON image_tags(tag_id);`,
+		`CREATE INDEX IF NOT EXISTS loras_image_idx ON loras(image_id);`,
 		// FTS5 virtual table (content-linked)
 		`CREATE VIRTUAL TABLE IF NOT EXISTS images_fts USING fts5(
 			file_name, model_name, prompt, negative_prompt, raw_metadata,

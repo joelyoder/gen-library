@@ -132,7 +132,7 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 func getImage(gdb *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var m db.Image
-		if err := gdb.Preload("Tags").Preload("UserMeta").First(&m, c.Param("id")).Error; err != nil {
+		if err := gdb.Preload("Tags").Preload("UserMeta").Preload("Loras").First(&m, c.Param("id")).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
 		}
@@ -148,10 +148,53 @@ func updateMetadata(gdb *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+
+		var (
+			loras        []db.Lora
+			lorasPresent bool
+		)
+		if raw, ok := payload["loras"]; ok {
+			lorasPresent = true
+			delete(payload, "loras")
+			if arr, ok := raw.([]any); ok {
+				for _, r := range arr {
+					obj, ok := r.(map[string]any)
+					if !ok {
+						continue
+					}
+					name, _ := obj["name"].(string)
+					hash, _ := obj["hash"].(string)
+					loras = append(loras, db.Lora{Name: name, Hash: hash})
+				}
+			}
+		}
+
 		if err := gdb.Model(&db.Image{}).Where("id=?", id).Updates(payload).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+
+		if lorasPresent {
+			uid, err := strconv.ParseUint(id, 10, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			if err := gdb.Where("image_id = ?", uid).Delete(&db.Lora{}).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			if len(loras) > 0 {
+				for i := range loras {
+					loras[i].ImageID = uint(uid)
+				}
+				if err := gdb.Create(&loras).Error; err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+			}
+		}
+
 		getImage(gdb)(c)
 	}
 }

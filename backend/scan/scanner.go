@@ -108,6 +108,12 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	// Parse generation parameters if present
 	normalizeParameters(metaMap)
 
+	// Extract model hash and any loras from sui_models
+	modelHash, loras := extractModels(metaMap)
+	if modelHash != "" && metaMap["model hash"] == "" {
+		metaMap["model hash"] = modelHash
+	}
+
 	// Prepare Image model
 	rel, err := filepath.Rel(root, path)
 	if err != nil {
@@ -122,6 +128,7 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 		SizeBytes: size,
 		SHA256:    sha,
 		NSFW:      checkNSFW(metaMap, dName(path)),
+		Loras:     loras,
 	}
 	if width > 0 {
 		img.Width = &width
@@ -408,28 +415,58 @@ func extractXMP(data string, meta map[string]string) {
 // mergeJSONMeta parses any metadata values that contain JSON objects
 // and merges their key/value pairs back into the main metadata map.
 func mergeJSONMeta(meta map[string]string) {
-	for _, v := range meta {
-		v = strings.TrimSpace(v)
-		if v == "" {
-			continue
-		}
-		var obj map[string]any
-		if json.Unmarshal([]byte(v), &obj) == nil {
-			for k, val := range obj {
-				key := strings.ToLower(k)
-				switch t := val.(type) {
-				case string:
-					meta[key] = t
-				case float64:
-					meta[key] = strconv.FormatFloat(t, 'f', -1, 64)
-				case bool:
-					meta[key] = strconv.FormatBool(t)
-				default:
-					if b, err := json.Marshal(t); err == nil {
-						meta[key] = string(b)
+	// Alias certain JSON keys to match the normalized keys expected elsewhere.
+	aliases := map[string]string{
+		"negativeprompt":  "negative prompt",
+		"negative_prompt": "negative prompt",
+		"cfgscale":        "cfg scale",
+		"cfg_scale":       "cfg scale",
+		"modelhash":       "model hash",
+		"model_hash":      "model hash",
+		"clipskip":        "clip skip",
+		"clip_skip":       "clip skip",
+	}
+
+	// Keep parsing as long as we keep discovering new JSON blobs.
+	for {
+		changed := false
+		for _, v := range meta {
+			v = strings.TrimSpace(v)
+			if v == "" {
+				continue
+			}
+			var obj map[string]any
+			if json.Unmarshal([]byte(v), &obj) == nil {
+				for k, val := range obj {
+					key := strings.ToLower(k)
+					if alias, ok := aliases[key]; ok {
+						key = alias
+					}
+					var sval string
+					switch t := val.(type) {
+					case string:
+						sval = t
+					case float64:
+						sval = strconv.FormatFloat(t, 'f', -1, 64)
+					case bool:
+						sval = strconv.FormatBool(t)
+					default:
+						if b, err := json.Marshal(t); err == nil {
+							sval = string(b)
+						}
+					}
+					if sval == "" {
+						continue
+					}
+					if cur, ok := meta[key]; !ok || cur != sval {
+						meta[key] = sval
+						changed = true
 					}
 				}
 			}
+		}
+		if !changed {
+			break
 		}
 	}
 }
@@ -441,6 +478,13 @@ func normalizeParameters(meta map[string]string) {
 	if !ok {
 		return
 	}
+
+	// If the parameters string is actually JSON, skip parsing to avoid
+	// clobbering values like the prompt.
+	if json.Valid([]byte(strings.TrimSpace(param))) {
+		return
+	}
+
 	lines := strings.Split(param, "\n")
 	if len(lines) == 0 {
 		return
@@ -469,6 +513,42 @@ func normalizeParameters(meta map[string]string) {
 			meta[key] = val
 		}
 	}
+}
+
+// extractModels parses the sui_models JSON array and returns the model hash and
+// any loras used by the generation. Loras are returned as a slice of db.Lora.
+func extractModels(meta map[string]string) (string, []db.Lora) {
+	s, ok := meta["sui_models"]
+	if !ok {
+		return "", nil
+	}
+	var entries []struct {
+		Name  string `json:"name"`
+		Param string `json:"param"`
+		Hash  string `json:"hash"`
+	}
+	if err := json.Unmarshal([]byte(s), &entries); err != nil {
+		return "", nil
+	}
+	var modelHash string
+	loras := []db.Lora{}
+	for _, e := range entries {
+		name := strings.TrimSuffix(e.Name, ".safetensors")
+		switch e.Param {
+		case "model":
+			if e.Hash != "" {
+				modelHash = e.Hash
+			}
+			if name != "" && meta["model"] == "" {
+				meta["model"] = name
+			}
+		case "loras":
+			if name != "" || e.Hash != "" {
+				loras = append(loras, db.Lora{Name: name, Hash: e.Hash})
+			}
+		}
+	}
+	return modelHash, loras
 }
 
 // checkNSFW applies a simple keyword heuristic on prompts and file name.
