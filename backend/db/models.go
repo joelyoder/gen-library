@@ -7,56 +7,56 @@ import (
 )
 
 type Image struct {
-	ID          uint   `gorm:"primaryKey"`
-	Path        string `gorm:"uniqueIndex;not null"`
-	FileName    string `gorm:"not null"`
-	Ext         string `gorm:"not null"`
-	SizeBytes   int64  `gorm:"not null"`
-	SHA256      string `gorm:"uniqueIndex;not null"`
-	Width       *int
-	Height      *int
-	CreatedTime *time.Time
-	ImportedAt  time.Time `gorm:"autoCreateTime"`
+	ID          uint       `gorm:"primaryKey" json:"id"`
+	Path        string     `gorm:"uniqueIndex;not null" json:"path"`
+	FileName    string     `gorm:"not null" json:"fileName"`
+	Ext         string     `gorm:"not null" json:"ext"`
+	SizeBytes   int64      `gorm:"not null" json:"sizeBytes"`
+	SHA256      string     `gorm:"uniqueIndex;not null" json:"sha256"`
+	Width       *int       `json:"width"`
+	Height      *int       `json:"height"`
+	CreatedTime *time.Time `json:"createdTime"`
+	ImportedAt  time.Time  `gorm:"autoCreateTime" json:"importedAt"`
 
-	SourceApp      *string
-	ModelName      *string
-	ModelHash      *string
-	Prompt         *string
-	NegativePrompt *string
-	Sampler        *string
-	Steps          *int
-	CFGScale       *float64
-	Seed           *string
-	Scheduler      *string
-	ClipSkip       *int
+	SourceApp      *string  `json:"sourceApp"`
+	ModelName      *string  `json:"modelName"`
+	ModelHash      *string  `json:"modelHash"`
+	Prompt         *string  `json:"prompt"`
+	NegativePrompt *string  `json:"negativePrompt"`
+	Sampler        *string  `json:"sampler"`
+	Steps          *int     `json:"steps"`
+	CFGScale       *float64 `json:"cfgScale"`
+	Seed           *string  `json:"seed"`
+	Scheduler      *string  `json:"scheduler"`
+	ClipSkip       *int     `json:"clipSkip"`
 
-	NSFW   bool `gorm:"default:false"`
-	Hidden bool `gorm:"default:false"`
+	NSFW   bool `gorm:"default:false" json:"nsfw"`
+	Hidden bool `gorm:"default:false" json:"hidden"`
 
-	RawMetadata datatypes.JSON
+	RawMetadata datatypes.JSON `json:"rawMetadata"`
 
-	Tags     []*Tag         `gorm:"many2many:image_tags;constraint:OnDelete:CASCADE"`
-	UserMeta []UserMetadata `gorm:"constraint:OnDelete:CASCADE"`
+	Tags     []*Tag         `gorm:"many2many:image_tags;constraint:OnDelete:CASCADE" json:"tags"`
+	UserMeta []UserMetadata `gorm:"constraint:OnDelete:CASCADE" json:"userMeta"`
 }
 
 type Tag struct {
-	ID   uint   `gorm:"primaryKey"`
-	Name string `gorm:"uniqueIndex;not null"`
+	ID   uint   `gorm:"primaryKey" json:"id"`
+	Name string `gorm:"uniqueIndex;not null" json:"name"`
 }
 
 type ImageTag struct {
-	ImageID uint `gorm:"primaryKey"`
-	TagID   uint `gorm:"primaryKey"`
+	ImageID uint `gorm:"primaryKey" json:"imageId"`
+	TagID   uint `gorm:"primaryKey" json:"tagId"`
 }
 
 type UserMetadata struct {
-	ID      uint   `gorm:"primaryKey"`
-	ImageID uint   `gorm:"index;not null"`
-	Key     string `gorm:"not null"`
-	Value   string `gorm:"not null"`
+	ID      uint   `gorm:"primaryKey" json:"id"`
+	ImageID uint   `gorm:"index;not null" json:"imageId"`
+	Key     string `gorm:"not null" json:"key"`
+	Value   string `gorm:"not null" json:"value"`
 }
 
 type Setting struct {
-	Key   string `gorm:"primaryKey"`
-	Value string `gorm:"not null"`
+	Key   string `gorm:"primaryKey" json:"key"`
+	Value string `gorm:"not null" json:"value"`
 }
