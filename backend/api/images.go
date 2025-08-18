@@ -130,14 +130,31 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 }
 
 func getImage(gdb *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var m db.Image
-		if err := gdb.Preload("Tags").Preload("UserMeta").Preload("Loras").First(&m, c.Param("id")).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
-			return
-		}
-		c.JSON(http.StatusOK, m)
-	}
+        return func(c *gin.Context) {
+                var m db.Image
+                if err := gdb.Preload("Tags").Preload("UserMeta").Preload("Loras").First(&m, c.Param("id")).Error; err != nil {
+                        c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+                        return
+                }
+                c.JSON(http.StatusOK, m)
+        }
+}
+
+func serveImage(gdb *gorm.DB) gin.HandlerFunc {
+        return func(c *gin.Context) {
+                var img db.Image
+                if err := gdb.First(&img, c.Param("id")).Error; err != nil {
+                        c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+                        return
+                }
+                var root string
+                gdb.Table("settings").Select("value").Where("key=?", "library_path").Scan(&root)
+                path := img.Path
+                if root != "" && !filepath.IsAbs(path) {
+                        path = filepath.Join(root, path)
+                }
+                c.File(path)
+        }
 }
 
 func updateMetadata(gdb *gorm.DB) gin.HandlerFunc {

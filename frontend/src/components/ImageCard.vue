@@ -6,6 +6,7 @@
       class="card-img-top"
       :alt="image.fileName"
       loading="lazy"
+      @click="onView"
     />
     <div class="card-body p-2">
       <div class="d-flex justify-content-between align-items-center">
@@ -35,6 +36,10 @@ async function onDelete() {
 }
 
 function onMetadata() {
+  emit('metadata', props.image)
+}
+
+function onView() {
   emit('metadata', props.image)
 }
 </script>
