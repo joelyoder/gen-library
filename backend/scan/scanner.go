@@ -441,6 +441,13 @@ func normalizeParameters(meta map[string]string) {
 	if !ok {
 		return
 	}
+
+	// If the parameters string is actually JSON, skip parsing to avoid
+	// clobbering values like the prompt.
+	if json.Valid([]byte(strings.TrimSpace(param))) {
+		return
+	}
+
 	lines := strings.Split(param, "\n")
 	if len(lines) == 0 {
 		return
