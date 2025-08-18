@@ -37,8 +37,19 @@
                   :alt="selectedImage.fileName"
                 />
               </div>
-              <div class="col-md-4 overflow-auto p-3">
-                <MetadataPanel v-if="selectedImage" :image="selectedImage" @saved="onMetadataSaved" />
+              <div class="col-md-4 overflow-auto p-3" v-if="selectedImage">
+                <div class="d-flex justify-content-end mb-3">
+                  <button class="btn btn-outline-danger" @click="onDeleteSelected">Delete</button>
+                </div>
+                <MetadataPanel
+                  v-if="metadataEditing"
+                  :image="selectedImage"
+                  @saved="onMetadataSaved"
+                  @cancel="metadataEditing = false"
+                />
+                <div v-else>
+                  <MetadataDisplay :image="selectedImage" @edit="metadataEditing = true" />
+                </div>
               </div>
             </div>
           </div>
@@ -51,11 +62,12 @@
 
 <script setup lang="ts">
 import { ref, watchEffect } from 'vue'
-import { listImages, scanLibrary, getLibraryPath, getImage } from '../api'
+import { listImages, scanLibrary, getLibraryPath, getImage, deleteImage } from '../api'
 import SidebarFilters from '../components/SidebarFilters.vue'
 import ImageGrid from '../components/ImageGrid.vue'
 import Pager from '../components/Pager.vue'
 import MetadataPanel from '../components/MetadataPanel.vue'
+import MetadataDisplay from '../components/MetadataDisplay.vue'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'
 
@@ -71,6 +83,7 @@ const items = ref<any[]>([])
 const total = ref(0)
 const metadataOpen = ref(false)
 const selectedImage = ref<any|null>(null)
+const metadataEditing = ref(false)
 
 function reload() {
   page.value = 1
@@ -97,19 +110,30 @@ function onDeleted(id: number) {
 async function onMetadata(img: any) {
   selectedImage.value = await getImage(img.id)
   metadataOpen.value = true
+  metadataEditing.value = false
 }
 
 function closeMetadata() {
   metadataOpen.value = false
   selectedImage.value = null
+  metadataEditing.value = false
 }
 
 async function onMetadataSaved() {
   if (selectedImage.value) {
     const updated = await getImage(selectedImage.value.id)
+    selectedImage.value = updated
     const idx = items.value.findIndex(i => i.id === updated.id)
     if (idx !== -1) items.value[idx] = updated
   }
+  metadataEditing.value = false
+}
+
+async function onDeleteSelected() {
+  if (!selectedImage.value) return
+  if (!confirm('Delete this image?')) return
+  await deleteImage(selectedImage.value.id)
+  items.value = items.value.filter(img => img.id !== selectedImage.value?.id)
   closeMetadata()
 }
 

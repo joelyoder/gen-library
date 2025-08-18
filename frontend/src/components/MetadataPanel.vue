@@ -71,8 +71,9 @@
         <pre v-if="rawOpen" class="mt-2"><code>{{ rawJson }}</code></pre>
       </div>
 
-      <div class="d-grid">
+      <div class="d-flex gap-2">
         <button class="btn btn-primary" @click="onSave">Save</button>
+        <button class="btn btn-secondary" type="button" @click="emit('cancel')">Cancel</button>
       </div>
     </div>
   </div>
@@ -84,7 +85,7 @@ import TagEditor from './TagEditor.vue'
 import { updateImageMetadata } from '../api'
 
 const props = defineProps<{ image: any }>()
-const emit = defineEmits(['saved'])
+const emit = defineEmits(['saved', 'cancel'])
 
 const form = reactive({
   modelName: '',
