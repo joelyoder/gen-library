@@ -102,6 +102,9 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 		metaMap = map[string]string{}
 	}
 
+	// Merge any JSON blobs into the metadata map
+	mergeJSONMeta(metaMap)
+
 	// Parse generation parameters if present
 	normalizeParameters(metaMap)
 
@@ -398,6 +401,35 @@ func extractXMP(data string, meta map[string]string) {
 	for tag, key := range candidates {
 		if v := fetch(tag); v != "" {
 			meta[key] = v
+		}
+	}
+}
+
+// mergeJSONMeta parses any metadata values that contain JSON objects
+// and merges their key/value pairs back into the main metadata map.
+func mergeJSONMeta(meta map[string]string) {
+	for _, v := range meta {
+		v = strings.TrimSpace(v)
+		if v == "" {
+			continue
+		}
+		var obj map[string]any
+		if json.Unmarshal([]byte(v), &obj) == nil {
+			for k, val := range obj {
+				key := strings.ToLower(k)
+				switch t := val.(type) {
+				case string:
+					meta[key] = t
+				case float64:
+					meta[key] = strconv.FormatFloat(t, 'f', -1, 64)
+				case bool:
+					meta[key] = strconv.FormatBool(t)
+				default:
+					if b, err := json.Marshal(t); err == nil {
+						meta[key] = string(b)
+					}
+				}
+			}
 		}
 	}
 }
