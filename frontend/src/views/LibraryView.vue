@@ -21,14 +21,26 @@
 
   <div v-if="metadataOpen">
     <div class="modal fade show d-block" tabindex="-1">
-      <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-dialog modal-fullscreen">
         <div class="modal-content bg-dark text-light">
           <div class="modal-header">
-            <h5 class="modal-title">Image Metadata</h5>
+            <h5 class="modal-title">{{ selectedImage?.fileName }}</h5>
             <button type="button" class="btn-close btn-close-white" @click="closeMetadata"></button>
           </div>
-          <div class="modal-body">
-            <MetadataPanel v-if="selectedImage" :image="selectedImage" @saved="onMetadataSaved" />
+          <div class="modal-body p-0">
+            <div class="row g-0 h-100">
+              <div class="col-md-8 d-flex align-items-center justify-content-center bg-black">
+                <img
+                  v-if="selectedImage"
+                  :src="apiBase + '/api/images/' + selectedImage.id + '/file'"
+                  class="img-fluid"
+                  :alt="selectedImage.fileName"
+                />
+              </div>
+              <div class="col-md-4 overflow-auto p-3">
+                <MetadataPanel v-if="selectedImage" :image="selectedImage" @saved="onMetadataSaved" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -44,6 +56,8 @@ import SidebarFilters from '../components/SidebarFilters.vue'
 import ImageGrid from '../components/ImageGrid.vue'
 import Pager from '../components/Pager.vue'
 import MetadataPanel from '../components/MetadataPanel.vue'
+
+const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'
 
 const page = ref(1)
 const pageSize = ref(50)
