@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"gen-library/backend/api"
 	"gen-library/backend/db"
+	"gen-library/backend/scan"
 )
 
 func main() {
@@ -23,6 +25,13 @@ func main() {
 
 	if err := db.ApplyMigrations(dbConn); err != nil {
 		log.Fatalf("migrations failed: %v", err)
+	}
+
+	var root string
+	if err := dbConn.Table("settings").Select("value").Where("key=?", "library_path").Scan(&root).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		log.Printf("failed to read library_path: %v", err)
+	} else if root != "" {
+		go scan.StartWatcher(root, dbConn)
 	}
 
 	r := gin.Default()

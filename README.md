@@ -13,15 +13,14 @@ Image organizer for local generation
 - Keyboard shortcuts in the fullscreen viewer for easy processing
     - Set a star rating by pressing numbers 1-5 while in the image viewer
 
-### Search and Filtering
-- Allow partial search of keywords
+### Settings
 - Change NSFW keyword list to setting
 
 ### Gallery
-- Fix gallery display order on desktop to show images top to bottom
 - Change NSFW button to indicator that can toggle NSFW status on the fly
-- Move Scan Library button to a better location
+- Update pager to match Model Manager and add it to the top of the page
 
 ### Misc
+- Improve folder scanning performance so it runs as a background task
 - Add icon instead of app name
 - Add tests
