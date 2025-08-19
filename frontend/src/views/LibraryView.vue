@@ -61,15 +61,13 @@
 
 <script setup lang="ts">
 import { ref, watchEffect } from 'vue'
-import { listImages, scanLibrary, getLibraryPath, getImage, deleteImage } from '../api'
+import { listImages, scanLibrary, getLibraryPath, getImage, deleteImage, apiBase } from '../api'
 import SidebarFilters from '../components/SidebarFilters.vue'
 import ImageGrid from '../components/ImageGrid.vue'
 import Pager from '../components/Pager.vue'
 import MetadataPanel from '../components/MetadataPanel.vue'
 import MetadataDisplay from '../components/MetadataDisplay.vue'
 import { nsfw } from '../nsfw'
-
-const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'
 
 const page = ref(1)
 const pageSize = ref(50)
