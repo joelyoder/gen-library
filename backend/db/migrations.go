@@ -29,14 +29,15 @@ func ApplyMigrations(gdb *gorm.DB) error {
 			negative_prompt TEXT,
 			sampler TEXT,
 			steps INTEGER,
-			cfg_scale REAL,
-			seed TEXT,
-			scheduler TEXT,
-			clip_skip INTEGER,
-			nsfw INTEGER DEFAULT 0,
-			hidden INTEGER DEFAULT 0,
-			raw_metadata TEXT
-		);`,
+                        cfg_scale REAL,
+                        seed TEXT,
+                        scheduler TEXT,
+                        clip_skip INTEGER,
+                        rating INTEGER DEFAULT 0,
+                        nsfw INTEGER DEFAULT 0,
+                        hidden INTEGER DEFAULT 0,
+                        raw_metadata TEXT
+                );`,
 		`CREATE TABLE IF NOT EXISTS tags (
 			id INTEGER PRIMARY KEY,
 			name TEXT UNIQUE NOT NULL
@@ -69,6 +70,7 @@ func ApplyMigrations(gdb *gorm.DB) error {
                );`,
 		// Indexes
 		`CREATE INDEX IF NOT EXISTS images_nsfw_idx ON images(nsfw);`,
+		`CREATE INDEX IF NOT EXISTS images_rating_idx ON images(rating);`,
 		`CREATE INDEX IF NOT EXISTS images_model_idx ON images(model_name);`,
 		`CREATE INDEX IF NOT EXISTS image_tags_image_idx ON image_tags(image_id);`,
 		`CREATE INDEX IF NOT EXISTS image_tags_tag_idx ON image_tags(tag_id);`,
