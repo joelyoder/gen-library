@@ -33,3 +33,19 @@ func EnsureThumb(sha string, srcPath string, width int) (string, error) {
 	}
 	return p, nil
 }
+
+// DeleteThumbs removes any cached thumbnails associated with the given sha.
+// It silently ignores missing files.
+func DeleteThumbs(sha string) error {
+	pattern := filepath.ToSlash(fmt.Sprintf(".cache/thumbs/%s_*.jpg", sha))
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return err
+	}
+	for _, m := range matches {
+		if err := os.Remove(m); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return nil
+}
