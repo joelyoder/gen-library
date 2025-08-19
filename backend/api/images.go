@@ -32,6 +32,7 @@ type imageDTO struct {
 	Height    *int    `json:"height"`
 	ModelName *string `json:"modelName"`
 	Prompt    *string `json:"prompt"`
+	Rating    int     `json:"rating"`
 	NSFW      bool    `json:"nsfw"`
 	ThumbURL  string  `json:"thumbUrl"`
 }
@@ -74,19 +75,26 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 			img = img.Where("images.nsfw = 1")
 		}
 
-               // FTS join if q
-               if strings.TrimSpace(q) != "" {
-                       q = strings.TrimSpace(q)
-                       // Allow partial keyword matches by adding a wildcard
-                       terms := strings.Fields(q)
-                       for i, t := range terms {
-                               if !strings.HasSuffix(t, "*") {
-                                       terms[i] = t + "*"
-                               }
-                       }
-                       q = strings.Join(terms, " ")
-                       img = img.Joins("JOIN images_fts ON images_fts.rowid = images.id").Where("images_fts MATCH ?", q)
-               }
+		// FTS join if q
+		if strings.TrimSpace(q) != "" {
+			q = strings.TrimSpace(q)
+			// Allow partial keyword matches by adding a wildcard
+			terms := strings.Fields(q)
+			for i, t := range terms {
+				if !strings.HasSuffix(t, "*") {
+					terms[i] = t + "*"
+				}
+			}
+			q = strings.Join(terms, " ")
+			img = img.Joins("JOIN images_fts ON images_fts.rowid = images.id").Where("images_fts MATCH ?", q)
+		}
+
+		// Rating filter
+		if rStr := c.Query("rating"); rStr != "" {
+			if r, err := strconv.Atoi(rStr); err == nil {
+				img = img.Where("images.rating = ?", r)
+			}
+		}
 
 		// Tag filter: require ALL tags
 		if len(tags) > 0 {
@@ -109,7 +117,7 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 		// Select page
 		rows := []imageDTO{}
 		qimg := img.Order("images." + sort + " " + strings.ToUpper(order)).
-			Select("images.id, images.path, images.file_name, images.ext, images.width, images.height, images.model_name, images.prompt, images.nsfw").
+			Select("images.id, images.path, images.file_name, images.ext, images.width, images.height, images.model_name, images.prompt, images.rating, images.nsfw").
 			Limit(pageSize).Offset((page - 1) * pageSize)
 
 		if err := qimg.Scan(&rows).Error; err != nil {

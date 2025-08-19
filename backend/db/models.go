@@ -30,6 +30,7 @@ type Image struct {
 	Scheduler      *string  `json:"scheduler"`
 	ClipSkip       *int     `json:"clipSkip"`
 
+	Rating int  `gorm:"default:0" json:"rating"`
 	NSFW   bool `gorm:"default:false" json:"nsfw"`
 	Hidden bool `gorm:"default:false" json:"hidden"`
 

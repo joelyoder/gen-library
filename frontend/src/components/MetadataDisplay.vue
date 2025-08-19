@@ -1,12 +1,23 @@
 <template>
   <div class="d-flex flex-column gap-2">
+    <div>
+      <strong>Rating:</strong>
+      <i
+        v-for="n in 5"
+        :key="n"
+        class="bi text-warning"
+        :class="n <= (props.image.rating || 0) ? 'bi-star-fill' : 'bi-star'"
+      ></i>
+    </div>
     <p><strong>Model:</strong> {{ props.image.modelName }}</p>
     <p><strong>Model Hash:</strong> {{ props.image.modelHash }}</p>
-    <p><strong>NSFW:</strong> {{ props.image.nsfw ? 'Yes' : 'No' }}</p>
+    <p><strong>NSFW:</strong> {{ props.image.nsfw ? "Yes" : "No" }}</p>
     <div>
       <strong>Loras:</strong>
       <div v-if="props.image.loras && props.image.loras.length">
-        <div v-for="(l, i) in props.image.loras" :key="i">{{ l.name }} ({{ l.hash }})</div>
+        <div v-for="(l, i) in props.image.loras" :key="i">
+          {{ l.name }} ({{ l.hash }})
+        </div>
       </div>
       <div v-else class="text-muted">None</div>
     </div>
@@ -27,7 +38,12 @@
     <p><strong>Source App:</strong> {{ props.image.sourceApp }}</p>
     <div>
       <strong>Tags:</strong>
-      <span v-for="t in props.image.tags" :key="t.id" class="badge text-bg-secondary me-1">{{ t.name }}</span>
+      <span
+        v-for="t in props.image.tags"
+        :key="t.id"
+        class="badge text-bg-secondary me-1"
+        >{{ t.name }}</span
+      >
     </div>
     <div class="d-grid mt-3">
       <button class="btn btn-primary" @click="$emit('edit')">Edit</button>
@@ -36,6 +52,6 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{ image: any }>()
-defineEmits(['edit'])
+const props = defineProps<{ image: any }>();
+defineEmits(["edit"]);
 </script>
