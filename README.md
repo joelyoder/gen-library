@@ -9,14 +9,9 @@ Image organizer for local generation
 
 ### Image viewer
 - Allow for zoom (and pinch and zoom) in the image viewer
-- Constrain images in the fullscreen viewer to the screen height
 - Nicer metadata display with buttons to copy prompts with one click
-- Ability to page to the next and previous image in the fullscreen viewer
 - Keyboard shortcuts in the fullscreen viewer for easy processing
-    - Toggle NSFW
     - Set a star rating by pressing numbers 1-5 while in the image viewer
-    - Delete the image
-    - Left and right arrow to move between images
 
 ### Search and Filtering
 - Allow partial search of keywords
