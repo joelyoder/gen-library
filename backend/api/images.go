@@ -74,10 +74,19 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 			img = img.Where("images.nsfw = 1")
 		}
 
-		// FTS join if q
-		if strings.TrimSpace(q) != "" {
-			img = img.Joins("JOIN images_fts ON images_fts.rowid = images.id").Where("images_fts MATCH ?", q)
-		}
+               // FTS join if q
+               if strings.TrimSpace(q) != "" {
+                       q = strings.TrimSpace(q)
+                       // Allow partial keyword matches by adding a wildcard
+                       terms := strings.Fields(q)
+                       for i, t := range terms {
+                               if !strings.HasSuffix(t, "*") {
+                                       terms[i] = t + "*"
+                               }
+                       }
+                       q = strings.Join(terms, " ")
+                       img = img.Joins("JOIN images_fts ON images_fts.rowid = images.id").Where("images_fts MATCH ?", q)
+               }
 
 		// Tag filter: require ALL tags
 		if len(tags) > 0 {

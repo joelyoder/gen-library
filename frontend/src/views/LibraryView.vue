@@ -7,12 +7,10 @@
           v-model:sort="sort"
           v-model:order="order"
           @search="reload"
+          @scan="onScan"
         />
       </div>
     <div class="col-12 col-lg-9">
-      <div class="d-flex justify-content-end mb-2">
-        <button class="btn btn-sm btn-secondary" @click="onScan">Scan Library</button>
-      </div>
       <ImageGrid :images="items" @deleted="onDeleted" @metadata="onMetadata" />
       <Pager :page="page" :page-size="pageSize" :total="total" @change="onPage" />
     </div>

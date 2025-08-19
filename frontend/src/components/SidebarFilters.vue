@@ -3,7 +3,12 @@
     <div class="card-body">
         <div class="mb-3">
           <label class="form-label">Search</label>
-          <input class="form-control" v-model="localQ" @keyup.enter="$emit('search')" placeholder="prompt, model, metadata" />
+          <input
+            class="form-control"
+            v-model="localQ"
+            @keyup.enter="$emit('search')"
+            placeholder="prompt, model, metadata"
+          />
         </div>
 
         <div class="mb-3">
@@ -29,15 +34,16 @@
           </div>
         </div>
 
-        <div class="d-grid mt-3">
+        <div class="d-grid gap-2 mt-3">
           <button class="btn btn-primary" @click="apply">Apply</button>
+          <button class="btn btn-secondary" @click="$emit('scan')">Scan Library</button>
         </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps<{
   q: string
@@ -45,7 +51,7 @@ const props = defineProps<{
   sort: 'created_time'|'imported_at'|'file_name'
   order: 'asc'|'desc'
 }>()
-const emit = defineEmits(['update:q','update:tags','update:sort','update:order','search'])
+const emit = defineEmits(['update:q','update:tags','update:sort','update:order','search','scan'])
 
 const localQ = computed({
   get: () => props.q,
@@ -68,4 +74,12 @@ const tagsCsv = computed({
 function apply() {
   emit('search')
 }
+
+const searchTimer = ref<number | null>(null)
+watch(localQ, () => {
+  if (searchTimer.value) {
+    clearTimeout(searchTimer.value)
+  }
+  searchTimer.value = window.setTimeout(() => emit('search'), 300)
+})
 </script>
