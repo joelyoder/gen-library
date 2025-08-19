@@ -16,6 +16,7 @@ Image organizer for local generation
     - Toggle NSFW
     - Set a star rating by pressing numbers 1-5 while in the image viewer
     - Delete the image
+    - Left and right arrow to move between images
 
 ### Search and Filtering
 - Allow partial search of keywords
@@ -24,6 +25,8 @@ Image organizer for local generation
 ### Gallery
 - Fix gallery display order on desktop to show images top to bottom
 - Change NSFW button to indicator that can toggle NSFW status on the fly
+- Move Scan Library button to a better location
 
 ### Misc
+- Add icon instead of app name
 - Add tests
