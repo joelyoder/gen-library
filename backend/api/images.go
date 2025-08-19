@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -130,31 +131,31 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 }
 
 func getImage(gdb *gorm.DB) gin.HandlerFunc {
-        return func(c *gin.Context) {
-                var m db.Image
-                if err := gdb.Preload("Tags").Preload("UserMeta").Preload("Loras").First(&m, c.Param("id")).Error; err != nil {
-                        c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
-                        return
-                }
-                c.JSON(http.StatusOK, m)
-        }
+	return func(c *gin.Context) {
+		var m db.Image
+		if err := gdb.Preload("Tags").Preload("UserMeta").Preload("Loras").First(&m, c.Param("id")).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+		c.JSON(http.StatusOK, m)
+	}
 }
 
 func serveImage(gdb *gorm.DB) gin.HandlerFunc {
-        return func(c *gin.Context) {
-                var img db.Image
-                if err := gdb.First(&img, c.Param("id")).Error; err != nil {
-                        c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
-                        return
-                }
-                var root string
-                gdb.Table("settings").Select("value").Where("key=?", "library_path").Scan(&root)
-                path := img.Path
-                if root != "" && !filepath.IsAbs(path) {
-                        path = filepath.Join(root, path)
-                }
-                c.File(path)
-        }
+	return func(c *gin.Context) {
+		var img db.Image
+		if err := gdb.First(&img, c.Param("id")).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+		var root string
+		gdb.Table("settings").Select("value").Where("key=?", "library_path").Scan(&root)
+		path := img.Path
+		if root != "" && !filepath.IsAbs(path) {
+			path = filepath.Join(root, path)
+		}
+		c.File(path)
+	}
 }
 
 func updateMetadata(gdb *gorm.DB) gin.HandlerFunc {
@@ -186,7 +187,12 @@ func updateMetadata(gdb *gorm.DB) gin.HandlerFunc {
 			}
 		}
 
-		if err := gdb.Model(&db.Image{}).Where("id=?", id).Updates(payload).Error; err != nil {
+		updates := make(map[string]any, len(payload))
+		for k, v := range payload {
+			updates[camelToSnake(k)] = v
+		}
+
+		if err := gdb.Model(&db.Image{}).Where("id=?", id).Updates(updates).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -511,4 +517,19 @@ func splitNonEmpty(s, sep string) []string {
 		}
 	}
 	return res
+}
+
+func camelToSnake(s string) string {
+	var b strings.Builder
+	for i, r := range s {
+		if unicode.IsUpper(r) {
+			if i > 0 {
+				b.WriteByte('_')
+			}
+			b.WriteRune(unicode.ToLower(r))
+		} else {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
