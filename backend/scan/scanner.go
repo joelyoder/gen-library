@@ -189,9 +189,13 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 		}
 	}
 
-	// Check if exists by SHA
+	// Check if exists by SHA without triggering a "record not found" log
 	var existing db.Image
-	if err := tx.Where("sha256 = ?", sha).First(&existing).Error; err == nil {
+	res := tx.Where("sha256 = ?", sha).Limit(1).Find(&existing)
+	if res.Error != nil {
+		return false, res.Error
+	}
+	if res.RowsAffected > 0 {
 		// Already exists - maybe moved
 		if existing.Path != rel {
 			upd := map[string]any{"path": rel, "file_name": dName(path)}
