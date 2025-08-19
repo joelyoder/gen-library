@@ -123,7 +123,13 @@ async function onMetadataSaved() {
     const updated = await getImage(selectedImage.value.id)
     selectedImage.value = updated
     const idx = items.value.findIndex(i => i.id === updated.id)
-    if (idx !== -1) items.value[idx] = updated
+    if (idx !== -1) {
+      if ((nsfw.value === 'hide' && updated.nsfw) || (nsfw.value === 'only' && !updated.nsfw)) {
+        items.value.splice(idx, 1)
+      } else {
+        items.value[idx] = updated
+      }
+    }
   }
   metadataEditing.value = false
 }

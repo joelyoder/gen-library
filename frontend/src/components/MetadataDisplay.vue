@@ -2,6 +2,7 @@
   <div class="d-flex flex-column gap-2">
     <p><strong>Model:</strong> {{ props.image.modelName }}</p>
     <p><strong>Model Hash:</strong> {{ props.image.modelHash }}</p>
+    <p><strong>NSFW:</strong> {{ props.image.nsfw ? 'Yes' : 'No' }}</p>
     <div>
       <strong>Loras:</strong>
       <div v-if="props.image.loras && props.image.loras.length">
