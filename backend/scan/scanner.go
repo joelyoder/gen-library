@@ -74,6 +74,38 @@ func ScanFolder(gdb *gorm.DB, root string) (int, error) {
 	return count, err
 }
 
+// ScanFile imports or updates a single image file without walking directories.
+// It returns true if a row was inserted or updated.
+func ScanFile(gdb *gorm.DB, root, path string) (bool, error) {
+	// Ensure root and path are absolute for consistent behavior
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return false, err
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return false, err
+	}
+
+	ext := strings.ToLower(filepath.Ext(absPath))
+	switch ext {
+	case ".png", ".jpg", ".jpeg", ".webp":
+	default:
+		return false, nil
+	}
+
+	var added bool
+	err = gdb.Transaction(func(tx *gorm.DB) error {
+		var err error
+		added, err = processFile(tx, absRoot, absPath, ext)
+		return err
+	})
+	if err != nil {
+		return false, err
+	}
+	return added, nil
+}
+
 // processFile handles a single image file. It returns true if a DB row was
 // inserted or updated.
 func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {

@@ -36,7 +36,7 @@
 
         <div class="d-grid gap-2 mt-3">
           <button class="btn btn-primary" @click="apply">Apply</button>
-          <button class="btn btn-secondary" @click="$emit('scan')">Scan Library</button>
+          <button class="btn btn-secondary" @click="$emit('scan')">Rescan Library</button>
         </div>
     </div>
   </div>
