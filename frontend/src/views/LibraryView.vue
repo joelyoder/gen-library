@@ -1,15 +1,14 @@
 <template>
   <div class="row g-3">
-    <div class="col-12 col-lg-3">
-      <SidebarFilters
-        v-model:q="q"
-        v-model:nsfw="nsfw"
-        v-model:tags="tags"
-        v-model:sort="sort"
-        v-model:order="order"
-        @search="reload"
-      />
-    </div>
+      <div class="col-12 col-lg-3">
+        <SidebarFilters
+          v-model:q="q"
+          v-model:tags="tags"
+          v-model:sort="sort"
+          v-model:order="order"
+          @search="reload"
+        />
+      </div>
     <div class="col-12 col-lg-9">
       <div class="d-flex justify-content-end mb-2">
         <button class="btn btn-sm btn-secondary" @click="onScan">Scan Library</button>
@@ -68,13 +67,13 @@ import ImageGrid from '../components/ImageGrid.vue'
 import Pager from '../components/Pager.vue'
 import MetadataPanel from '../components/MetadataPanel.vue'
 import MetadataDisplay from '../components/MetadataDisplay.vue'
+import { nsfw } from '../nsfw'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'
 
 const page = ref(1)
 const pageSize = ref(50)
 const q = ref('')
-const nsfw = ref<'hide'|'show'|'only'>('hide')
 const tags = ref<string[]>([])
 const sort = ref<'created_time'|'imported_at'|'file_name'>('imported_at')
 const order = ref<'asc'|'desc'>('desc')
@@ -124,7 +123,13 @@ async function onMetadataSaved() {
     const updated = await getImage(selectedImage.value.id)
     selectedImage.value = updated
     const idx = items.value.findIndex(i => i.id === updated.id)
-    if (idx !== -1) items.value[idx] = updated
+    if (idx !== -1) {
+      if ((nsfw.value === 'hide' && updated.nsfw) || (nsfw.value === 'only' && !updated.nsfw)) {
+        items.value.splice(idx, 1)
+      } else {
+        items.value[idx] = updated
+      }
+    }
   }
   metadataEditing.value = false
 }

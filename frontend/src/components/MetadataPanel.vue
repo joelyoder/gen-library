@@ -64,6 +64,11 @@
         <TagEditor :image-id="props.image.id" v-model:tags="tags" />
       </div>
 
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" id="nsfwCheck" v-model="form.nsfw" />
+        <label class="form-check-label" for="nsfwCheck">NSFW</label>
+      </div>
+
       <div class="mb-3">
         <button class="btn btn-link p-0" type="button" @click="rawOpen = !rawOpen">
           {{ rawOpen ? 'Hide Raw JSON' : 'Show Raw JSON' }}
@@ -98,7 +103,8 @@ const form = reactive({
   seed: '',
   scheduler: '',
   clipSkip: '' as any,
-  sourceApp: ''
+  sourceApp: '',
+  nsfw: false,
 })
 
 const tags = ref<string[]>([])
@@ -117,6 +123,7 @@ watch(() => props.image, (img) => {
   form.scheduler = img?.scheduler ?? ''
   form.clipSkip = img?.clipSkip ?? ''
   form.sourceApp = img?.sourceApp ?? ''
+  form.nsfw = !!img?.nsfw
   tags.value = img?.tags?.map((t: any) => t.name) ?? []
   loras.value = img?.loras?.map((l: any) => ({ name: l.name, hash: l.hash })) ?? []
   rawOpen.value = false
@@ -143,7 +150,8 @@ async function onSave() {
     scheduler: form.scheduler || null,
     clipSkip: form.clipSkip !== '' ? Number(form.clipSkip) : null,
     sourceApp: form.sourceApp || null,
-    loras: loras.value.filter(l => l.name || l.hash)
+    loras: loras.value.filter(l => l.name || l.hash),
+    nsfw: form.nsfw,
   }
   await updateImageMetadata(props.image.id, payload)
   emit('saved')
