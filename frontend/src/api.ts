@@ -1,7 +1,10 @@
 import axios from 'axios'
 
+// Use a relative base URL by default so that Vite's dev server proxy
+// can forward API requests to the backend. This avoids hard-coding
+// "localhost", which breaks when accessing the app from other devices.
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'
+  baseURL: import.meta.env.VITE_API_BASE_URL || ''
 })
 
 export interface ListParams {
