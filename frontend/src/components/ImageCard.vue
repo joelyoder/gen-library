@@ -19,20 +19,18 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { deleteImage } from '../api'
+  <script setup lang="ts">
+  import { deleteImage, apiBase } from '../api'
+  const props = defineProps<{ image: any }>()
+  const emit = defineEmits(['deleted', 'metadata'])
 
-const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'
-const props = defineProps<{ image: any }>()
-const emit = defineEmits(['deleted', 'metadata'])
+  async function onDelete() {
+    if (!confirm('Delete this image?')) return
+    await deleteImage(props.image.id)
+    emit('deleted', props.image.id)
+  }
 
-async function onDelete() {
-  if (!confirm('Delete this image?')) return
-  await deleteImage(props.image.id)
-  emit('deleted', props.image.id)
-}
-
-function onView() {
-  emit('metadata', props.image)
-}
+  function onView() {
+    emit('metadata', props.image)
+  }
 </script>
