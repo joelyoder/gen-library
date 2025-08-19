@@ -8,7 +8,9 @@
             v-for="n in 5"
             :key="n"
             class="bi text-warning"
-            :class="n <= (props.image.rating || 0) ? 'bi-star-fill' : 'bi-star'"
+            :class="n <= form.rating ? 'bi-star-fill' : 'bi-star'"
+            @click="form.rating = form.rating === n ? 0 : n"
+            style="cursor: pointer"
           ></i>
         </div>
       </div>
@@ -140,6 +142,7 @@ const props = defineProps<{ image: any }>();
 const emit = defineEmits(["saved", "cancel"]);
 
 const form = reactive({
+  rating: 0,
   modelName: "",
   modelHash: "",
   prompt: "",
@@ -173,6 +176,7 @@ watch(
     form.clipSkip = img?.clipSkip ?? "";
     form.sourceApp = img?.sourceApp ?? "";
     form.nsfw = !!img?.nsfw;
+    form.rating = img?.rating ?? 0;
     tags.value = img?.tags?.map((t: any) => t.name) ?? [];
     loras.value =
       img?.loras?.map((l: any) => ({ name: l.name, hash: l.hash })) ?? [];
@@ -191,6 +195,7 @@ const rawJson = computed(() => {
 
 async function onSave() {
   const payload: any = {
+    rating: form.rating,
     modelName: form.modelName || null,
     modelHash: form.modelHash || null,
     prompt: form.prompt || null,
