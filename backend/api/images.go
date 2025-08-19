@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -186,7 +187,12 @@ func updateMetadata(gdb *gorm.DB) gin.HandlerFunc {
 			}
 		}
 
-		if err := gdb.Model(&db.Image{}).Where("id=?", id).Updates(payload).Error; err != nil {
+		updates := make(map[string]any, len(payload))
+		for k, v := range payload {
+			updates[camelToSnake(k)] = v
+		}
+
+		if err := gdb.Model(&db.Image{}).Where("id=?", id).Updates(updates).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -520,4 +526,19 @@ func splitNonEmpty(s, sep string) []string {
 		}
 	}
 	return res
+}
+
+func camelToSnake(s string) string {
+	var b strings.Builder
+	for i, r := range s {
+		if unicode.IsUpper(r) {
+			if i > 0 {
+				b.WriteByte('_')
+			}
+			b.WriteRune(unicode.ToLower(r))
+		} else {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
