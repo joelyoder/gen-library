@@ -31,7 +31,7 @@
               <div class="col-md-8 d-flex align-items-center justify-content-center bg-black">
                 <img
                   v-if="selectedImage"
-                  :src="apiBase + '/api/images/' + selectedImage.id + '/file'"
+                  :src="apiBase + '/api/images/' + selectedImage.id + '/file?sha=' + selectedImage.sha256"
                   class="img-fluid"
                   :alt="selectedImage.fileName"
                 />
@@ -83,9 +83,11 @@ const total = ref(0)
 const metadataOpen = ref(false)
 const selectedImage = ref<any|null>(null)
 const metadataEditing = ref(false)
+const reloadKey = ref(0)
 
 function reload() {
   page.value = 1
+  reloadKey.value++
 }
 
 function onPage(newPage: number) {
@@ -143,6 +145,7 @@ async function onDeleteSelected() {
 }
 
 watchEffect(async () => {
+  reloadKey.value
   const data = await listImages({
     page: page.value,
     pageSize: pageSize.value,
