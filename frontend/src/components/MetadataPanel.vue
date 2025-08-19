@@ -124,7 +124,7 @@
       </div>
 
       <div class="d-flex gap-2">
-        <button class="btn btn-primary" @click="onSave">Save</button>
+        <button class="btn btn-primary" type="button" @click="onSave">Save</button>
         <button class="btn btn-secondary" type="button" @click="emit('cancel')">
           Cancel
         </button>
