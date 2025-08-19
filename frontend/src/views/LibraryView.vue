@@ -57,7 +57,6 @@
                 </div>
                 <MetadataPanel
                   v-if="metadataEditing"
-                  ref="metadataPanelRef"
                   :image="selectedImage"
                   @saved="onMetadataSaved"
                   @cancel="metadataEditing = false"
@@ -98,7 +97,6 @@ const metadataOpen = ref(false)
 const selectedImage = ref<any|null>(null)
 const metadataEditing = ref(false)
 const selectedIndex = ref(-1)
-const metadataPanelRef = ref<any>(null)
 const reloadKey = ref(0)
 
 function reload() {
@@ -193,7 +191,7 @@ async function onDeleteSelected() {
 }
 
 function onKeydown(e: KeyboardEvent) {
-  if (!metadataOpen.value) return
+  if (!metadataOpen.value || metadataEditing.value) return
   const tag = (e.target as HTMLElement).tagName
   if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return
   switch (e.key) {
@@ -220,12 +218,6 @@ function onKeydown(e: KeyboardEvent) {
     case 'e':
       e.preventDefault()
       metadataEditing.value = true
-      break
-    case 's':
-      if (metadataEditing.value) {
-        e.preventDefault()
-        metadataPanelRef.value?.save()
-      }
       break
   }
 }

@@ -165,6 +165,5 @@ function removeLora(i: number) {
   loras.value.splice(i, 1)
 }
 
-defineExpose({ save: onSave })
 </script>
 
