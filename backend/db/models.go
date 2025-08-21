@@ -19,8 +19,10 @@ type Image struct {
 	ImportedAt  time.Time  `gorm:"autoCreateTime" json:"importedAt"`
 
 	SourceApp                *string  `json:"sourceApp"`
-	ModelName                *string  `json:"modelName"`
-	ModelHash                *string  `json:"modelHash"`
+	ModelID                  *uint    `json:"modelId"`
+	Model                    *Model   `json:"model"`
+	ModelName                *string  `gorm:"-" json:"modelName,omitempty"`
+	ModelHash                *string  `gorm:"-" json:"modelHash,omitempty"`
 	Prompt                   *string  `json:"prompt"`
 	NegativePrompt           *string  `json:"negativePrompt"`
 	Sampler                  *string  `json:"sampler"`
@@ -58,8 +60,9 @@ type ImageTag struct {
 }
 
 type ImageLora struct {
-	ImageID uint `gorm:"primaryKey" json:"imageId"`
-	LoraID  uint `gorm:"primaryKey" json:"loraId"`
+	ImageID uint     `gorm:"primaryKey" json:"imageId"`
+	LoraID  uint     `gorm:"primaryKey" json:"loraId"`
+	Weight  *float64 `json:"weight"`
 }
 
 type ImageEmbedding struct {
@@ -67,10 +70,17 @@ type ImageEmbedding struct {
 	EmbeddingID uint `gorm:"primaryKey" json:"embeddingId"`
 }
 
-type Lora struct {
+type Model struct {
 	ID   uint    `gorm:"primaryKey" json:"id"`
 	Name string  `gorm:"uniqueIndex;not null" json:"name"`
 	Hash *string `gorm:"index" json:"hash"`
+}
+
+type Lora struct {
+	ID     uint     `gorm:"primaryKey" json:"id"`
+	Name   string   `gorm:"uniqueIndex;not null" json:"name"`
+	Hash   *string  `gorm:"index" json:"hash"`
+	Weight *float64 `gorm:"->;column:weight" json:"weight,omitempty"`
 }
 
 type Embedding struct {

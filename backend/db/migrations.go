@@ -12,24 +12,28 @@ func ApplyMigrations(gdb *gorm.DB) error {
 	stmts := []string{
 		// Pragma & tables
 		"PRAGMA foreign_keys = ON;",
+		`CREATE TABLE IF NOT EXISTS models (
+                       id INTEGER PRIMARY KEY,
+                       name TEXT UNIQUE NOT NULL,
+                       hash TEXT
+               );`,
 		`CREATE TABLE IF NOT EXISTS images (
                         id INTEGER PRIMARY KEY,
                         path TEXT UNIQUE NOT NULL,
-			file_name TEXT NOT NULL,
-			ext TEXT NOT NULL,
-			size_bytes INTEGER NOT NULL,
-			sha256 TEXT UNIQUE NOT NULL,
-			width INTEGER,
-			height INTEGER,
-			created_time DATETIME,
-			imported_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			source_app TEXT,
-			model_name TEXT,
-			model_hash TEXT,
-			prompt TEXT,
-			negative_prompt TEXT,
-			sampler TEXT,
-			steps INTEGER,
+                        file_name TEXT NOT NULL,
+                        ext TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        sha256 TEXT UNIQUE NOT NULL,
+                        width INTEGER,
+                        height INTEGER,
+                        created_time DATETIME,
+                        imported_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        source_app TEXT,
+                        model_id INTEGER,
+                        prompt TEXT,
+                        negative_prompt TEXT,
+                        sampler TEXT,
+                        steps INTEGER,
                         cfg_scale REAL,
                         seed TEXT,
                         scheduler TEXT,
@@ -43,7 +47,8 @@ func ApplyMigrations(gdb *gorm.DB) error {
                         rating INTEGER DEFAULT 0,
                         nsfw INTEGER DEFAULT 0,
                         hidden INTEGER DEFAULT 0,
-                        raw_metadata TEXT
+                        raw_metadata TEXT,
+                        FOREIGN KEY (model_id) REFERENCES models(id)
                 );`,
 		`CREATE TABLE IF NOT EXISTS tags (
 			id INTEGER PRIMARY KEY,
@@ -68,6 +73,7 @@ func ApplyMigrations(gdb *gorm.DB) error {
 		`CREATE TABLE IF NOT EXISTS image_loras (
                        image_id INTEGER NOT NULL,
                        lora_id INTEGER NOT NULL,
+                       weight REAL,
                        PRIMARY KEY (image_id, lora_id),
                        FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE,
                        FOREIGN KEY (lora_id) REFERENCES loras(id) ON DELETE CASCADE
@@ -86,10 +92,15 @@ func ApplyMigrations(gdb *gorm.DB) error {
                        FOREIGN KEY (embedding_id) REFERENCES embeddings(id) ON DELETE CASCADE
                );`,
 		`ALTER TABLE loras DROP COLUMN image_id;`,
+		`ALTER TABLE image_loras ADD COLUMN weight REAL;`,
+		`ALTER TABLE images ADD COLUMN model_id INTEGER;`,
+		`ALTER TABLE images DROP COLUMN model_name;`,
+		`ALTER TABLE images DROP COLUMN model_hash;`,
 		// Indexes
 		`CREATE INDEX IF NOT EXISTS images_nsfw_idx ON images(nsfw);`,
 		`CREATE INDEX IF NOT EXISTS images_rating_idx ON images(rating);`,
-		`CREATE INDEX IF NOT EXISTS images_model_idx ON images(model_name);`,
+		`CREATE INDEX IF NOT EXISTS images_model_idx ON images(model_id);`,
+		`CREATE INDEX IF NOT EXISTS models_hash_idx ON models(hash);`,
 		`CREATE INDEX IF NOT EXISTS image_tags_image_idx ON image_tags(image_id);`,
 		`CREATE INDEX IF NOT EXISTS image_tags_tag_idx ON image_tags(tag_id);`,
 		`CREATE INDEX IF NOT EXISTS loras_hash_idx ON loras(hash);`,
@@ -105,22 +116,25 @@ func ApplyMigrations(gdb *gorm.DB) error {
 		);`,
 		// Triggers to sync FTS
 		`CREATE TRIGGER IF NOT EXISTS images_ai AFTER INSERT ON images BEGIN
-			INSERT INTO images_fts(rowid, file_name, model_name, prompt, negative_prompt, raw_metadata)
-			VALUES (new.id, new.file_name, new.model_name, new.prompt, new.negative_prompt, new.raw_metadata);
-		END;`,
+                        INSERT INTO images_fts(rowid, file_name, model_name, prompt, negative_prompt, raw_metadata)
+                        VALUES (new.id, new.file_name, (SELECT name FROM models WHERE id = new.model_id), new.prompt, new.negative_prompt, new.raw_metadata);
+                END;`,
 		`CREATE TRIGGER IF NOT EXISTS images_ad AFTER DELETE ON images BEGIN
 			INSERT INTO images_fts(images_fts, rowid, file_name) VALUES('delete', old.id, old.file_name);
 		END;`,
 		`CREATE TRIGGER IF NOT EXISTS images_au AFTER UPDATE ON images BEGIN
-			INSERT INTO images_fts(images_fts, rowid, file_name) VALUES('delete', old.id, old.file_name);
-			INSERT INTO images_fts(rowid, file_name, model_name, prompt, negative_prompt, raw_metadata)
-			VALUES (new.id, new.file_name, new.model_name, new.prompt, new.negative_prompt, new.raw_metadata);
-		END;`,
+                        INSERT INTO images_fts(images_fts, rowid, file_name) VALUES('delete', old.id, old.file_name);
+                        INSERT INTO images_fts(rowid, file_name, model_name, prompt, negative_prompt, raw_metadata)
+                        VALUES (new.id, new.file_name, (SELECT name FROM models WHERE id = new.model_id), new.prompt, new.negative_prompt, new.raw_metadata);
+                END;`,
 	}
 
 	for _, s := range stmts {
 		if err := gdb.Exec(s).Error; err != nil {
-			if strings.Contains(s, "ALTER TABLE loras DROP COLUMN image_id") && strings.Contains(err.Error(), "no such column") {
+			if (strings.Contains(s, "ALTER TABLE loras DROP COLUMN image_id") || strings.Contains(s, "ALTER TABLE images DROP COLUMN model_name") || strings.Contains(s, "ALTER TABLE images DROP COLUMN model_hash")) && strings.Contains(err.Error(), "no such column") {
+				continue
+			}
+			if (strings.Contains(s, "ALTER TABLE image_loras ADD COLUMN weight") || strings.Contains(s, "ALTER TABLE images ADD COLUMN model_id")) && strings.Contains(err.Error(), "duplicate column") {
 				continue
 			}
 			return fmt.Errorf("migration failed on: %s\nerr: %w", s, err)

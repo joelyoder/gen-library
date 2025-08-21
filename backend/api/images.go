@@ -67,7 +67,7 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 		}
 
 		// Base query
-		img := gdb.Table("images")
+		img := gdb.Table("images").Joins("LEFT JOIN models ON images.model_id = models.id")
 		// NSFW filter
 		switch nsfwMode {
 		case "hide":
@@ -118,7 +118,7 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 		// Select page
 		rows := []imageDTO{}
 		qimg := img.Order("images." + sort + " " + strings.ToUpper(order)).
-			Select("images.id, images.path, images.file_name, images.ext, images.width, images.height, images.model_name, images.prompt, images.rating, images.nsfw").
+			Select("images.id, images.path, images.file_name, images.ext, images.width, images.height, models.name AS model_name, images.prompt, images.rating, images.nsfw").
 			Limit(pageSize).Offset((page - 1) * pageSize)
 
 		if err := qimg.Scan(&rows).Error; err != nil {
@@ -151,9 +151,15 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 func getImage(gdb *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var m db.Image
-		if err := gdb.Preload("Tags").Preload("Loras").Preload("Embeddings").First(&m, c.Param("id")).Error; err != nil {
+		if err := gdb.Preload("Tags").Preload("Loras", func(db *gorm.DB) *gorm.DB {
+			return db.Select("loras.*, image_loras.weight")
+		}).Preload("Embeddings").Preload("Model").First(&m, c.Param("id")).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
+		}
+		if m.Model != nil {
+			m.ModelName = &m.Model.Name
+			m.ModelHash = m.Model.Hash
 		}
 		c.JSON(http.StatusOK, m)
 	}
@@ -188,6 +194,7 @@ func updateMetadata(gdb *gorm.DB) gin.HandlerFunc {
 		var (
 			loras        []*db.Lora
 			lorasPresent bool
+			modelID      *uint
 		)
 		if raw, ok := payload["loras"]; ok {
 			lorasPresent = true
@@ -261,10 +268,74 @@ func updateMetadata(gdb *gorm.DB) gin.HandlerFunc {
 				}
 			}
 		}
+		if _, ok := payload["modelName"]; ok || (func() bool { _, ok := payload["modelHash"]; return ok })() {
+			var name string
+			if v, ok := payload["modelName"].(string); ok {
+				name = v
+			}
+			var hash string
+			if v, ok := payload["modelHash"].(string); ok {
+				hash = v
+			}
+			delete(payload, "modelName")
+			delete(payload, "modelHash")
+			var m db.Model
+			if name != "" {
+				if err := gdb.Where("name = ?", name).First(&m).Error; err == nil {
+					modelID = &m.ID
+				} else if errors.Is(err, gorm.ErrRecordNotFound) {
+					m = db.Model{Name: name}
+					if err := gdb.Create(&m).Error; err != nil {
+						c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+						return
+					}
+					modelID = &m.ID
+				} else {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+			}
+			if modelID == nil && hash != "" {
+				if err := gdb.Where("hash = ?", hash).First(&m).Error; err == nil {
+					modelID = &m.ID
+				} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+			}
+			if modelID != nil && hash != "" {
+				if m.ID == *modelID {
+					if m.Hash == nil {
+						m.Hash = &hash
+						if err := gdb.Save(&m).Error; err != nil {
+							c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+							return
+						}
+					} else if *m.Hash != hash {
+						var existing db.Model
+						if err := gdb.Where("hash = ?", hash).First(&existing).Error; err == nil && existing.ID != m.ID {
+							modelID = &existing.ID
+						} else if errors.Is(err, gorm.ErrRecordNotFound) {
+							m.Hash = &hash
+							if err := gdb.Save(&m).Error; err != nil {
+								c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+								return
+							}
+						} else {
+							c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+							return
+						}
+					}
+				}
+			}
+		}
 
 		updates := make(map[string]any, len(payload))
 		for k, v := range payload {
 			updates[camelToSnake(k)] = v
+		}
+		if modelID != nil {
+			updates["model_id"] = *modelID
 		}
 
 		if err := gdb.Model(&db.Image{}).Where("id=?", id).Updates(updates).Error; err != nil {
