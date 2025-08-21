@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/json"
+	"errors"
 	"image"
 	_ "image/jpeg" // register JPEG decoder
 	_ "image/png"  // register PNG decoder
@@ -142,17 +143,59 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 
 	// Extract model hash, loras, and embeddings from sui_models
 	modelHash, loras, embeds := extractModels(metaMap)
-	if ws, ok := metaMap["loraweights"]; ok {
-		var arr []string
-		if json.Unmarshal([]byte(ws), &arr) == nil {
-			for i := range loras {
-				if i < len(arr) {
-					if fv, err := strconv.ParseFloat(arr[i], 64); err == nil {
-						loras[i].Weight = &fv
+	assocLoras := []*db.Lora{}
+	for _, lr := range loras {
+		name := lr.Name
+		hash := ""
+		if lr.Hash != nil {
+			hash = *lr.Hash
+		}
+		var l db.Lora
+		if err := tx.Where("name = ?", name).First(&l).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				if hash != "" {
+					var existing db.Lora
+					if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil {
+						log.Printf("hash conflict for lora %s; using existing %s", name, existing.Name)
+						l = existing
+					} else {
+						l = db.Lora{Name: name}
+						if err := tx.Create(&l).Error; err != nil {
+							return false, err
+						}
 					}
+				} else {
+					l = db.Lora{Name: name}
+					if err := tx.Create(&l).Error; err != nil {
+						return false, err
+					}
+				}
+			} else {
+				return false, err
+			}
+		}
+		if hash != "" {
+			if l.Hash == nil {
+				l.Hash = &hash
+				if err := tx.Save(&l).Error; err != nil {
+					return false, err
+				}
+			} else if *l.Hash != hash {
+				var existing db.Lora
+				if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil && existing.ID != l.ID {
+					log.Printf("hash conflict for lora %s; using existing %s", name, existing.Name)
+					l = existing
+				} else if errors.Is(err, gorm.ErrRecordNotFound) {
+					l.Hash = &hash
+					if err := tx.Save(&l).Error; err != nil {
+						return false, err
+					}
+				} else if err != nil {
+					return false, err
 				}
 			}
 		}
+		assocLoras = append(assocLoras, &l)
 	}
 	if modelHash != "" && metaMap["model hash"] == "" {
 		metaMap["model hash"] = modelHash
@@ -172,7 +215,6 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 		SizeBytes:  size,
 		SHA256:     sha,
 		NSFW:       checkNSFW(metaMap, dName(path)),
-		Loras:      loras,
 		Embeddings: embeds,
 	}
 	if width > 0 {
@@ -280,6 +322,11 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 
 	if err := tx.Create(&img).Error; err != nil {
 		return false, err
+	}
+	if len(assocLoras) > 0 {
+		if err := tx.Model(&img).Association("Loras").Append(assocLoras); err != nil {
+			return false, err
+		}
 	}
 	return true, nil
 }
@@ -644,7 +691,12 @@ func extractModels(meta map[string]string) (string, []db.Lora, []db.Embedding) {
 			}
 		case "loras":
 			if name != "" || e.Hash != "" {
-				loras = append(loras, db.Lora{Name: name, Hash: e.Hash})
+				var hptr *string
+				if e.Hash != "" {
+					h := e.Hash
+					hptr = &h
+				}
+				loras = append(loras, db.Lora{Name: name, Hash: hptr})
 			}
 		case "used_embeddings":
 			if name != "" || e.Hash != "" {
