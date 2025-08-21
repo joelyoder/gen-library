@@ -12,8 +12,8 @@ func ApplyMigrations(gdb *gorm.DB) error {
 		// Pragma & tables
 		"PRAGMA foreign_keys = ON;",
 		`CREATE TABLE IF NOT EXISTS images (
-			id INTEGER PRIMARY KEY,
-			path TEXT UNIQUE NOT NULL,
+                        id INTEGER PRIMARY KEY,
+                        path TEXT UNIQUE NOT NULL,
 			file_name TEXT NOT NULL,
 			ext TEXT NOT NULL,
 			size_bytes INTEGER NOT NULL,
@@ -33,6 +33,12 @@ func ApplyMigrations(gdb *gorm.DB) error {
                         seed TEXT,
                         scheduler TEXT,
                         clip_skip INTEGER,
+                        variation_seed INTEGER,
+                        variation_seed_strength REAL,
+                        aspect_ratio TEXT,
+                        refiner_control_percentage REAL,
+                        refiner_upscale REAL,
+                        refiner_upscale_method TEXT,
                         rating INTEGER DEFAULT 0,
                         nsfw INTEGER DEFAULT 0,
                         hidden INTEGER DEFAULT 0,
@@ -66,6 +72,14 @@ func ApplyMigrations(gdb *gorm.DB) error {
                        image_id INTEGER NOT NULL,
                        name TEXT NOT NULL,
                        hash TEXT,
+                       weight REAL,
+                       FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
+               );`,
+		`CREATE TABLE IF NOT EXISTS embeddings (
+                       id INTEGER PRIMARY KEY,
+                       image_id INTEGER NOT NULL,
+                       name TEXT NOT NULL,
+                       hash TEXT,
                        FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
                );`,
 		// Indexes
@@ -75,6 +89,7 @@ func ApplyMigrations(gdb *gorm.DB) error {
 		`CREATE INDEX IF NOT EXISTS image_tags_image_idx ON image_tags(image_id);`,
 		`CREATE INDEX IF NOT EXISTS image_tags_tag_idx ON image_tags(tag_id);`,
 		`CREATE INDEX IF NOT EXISTS loras_image_idx ON loras(image_id);`,
+		`CREATE INDEX IF NOT EXISTS embeddings_image_idx ON embeddings(image_id);`,
 		// FTS5 virtual table (content-linked)
 		`CREATE VIRTUAL TABLE IF NOT EXISTS images_fts USING fts5(
 			file_name, model_name, prompt, negative_prompt, raw_metadata,
