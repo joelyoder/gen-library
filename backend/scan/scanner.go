@@ -145,12 +145,7 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	modelHash, loras, embeds := extractModels(metaMap)
 	var loraWeights []float64
 	if wstr, ok := metaMap["loraweights"]; ok {
-		parts := strings.Split(wstr, ",")
-		for _, p := range parts {
-			if fv, err := strconv.ParseFloat(strings.TrimSpace(p), 64); err == nil {
-				loraWeights = append(loraWeights, fv)
-			}
-		}
+		loraWeights = parseLoraWeights(wstr)
 	}
 	type loraAssoc struct {
 		l      *db.Lora
@@ -782,6 +777,35 @@ func normalizeParameters(meta map[string]string) {
 			meta[key] = val
 		}
 	}
+}
+
+// parseLoraWeights attempts to parse a list of LoRA weights from various formats.
+func parseLoraWeights(s string) []float64 {
+	// Try JSON array of numbers first
+	var floats []float64
+	if err := json.Unmarshal([]byte(s), &floats); err == nil {
+		return floats
+	} else {
+		floats = nil
+	}
+	// Try JSON array of strings
+	var strSlice []string
+	if err := json.Unmarshal([]byte(s), &strSlice); err == nil {
+		for _, p := range strSlice {
+			if fv, err := strconv.ParseFloat(strings.TrimSpace(p), 64); err == nil {
+				floats = append(floats, fv)
+			}
+		}
+		return floats
+	}
+	// Fallback to comma-separated values
+	parts := strings.Split(s, ",")
+	for _, p := range parts {
+		if fv, err := strconv.ParseFloat(strings.TrimSpace(p), 64); err == nil {
+			floats = append(floats, fv)
+		}
+	}
+	return floats
 }
 
 // extractModels parses the sui_models JSON array and returns the model hash,
