@@ -463,18 +463,32 @@ func mergeJSONMeta(meta map[string]string) {
 		"clip_skip":       "clip skip",
 	}
 
+	// Keys to exclude entirely from the metadata map.
+	exclude := map[string]struct{}{
+		"sui_extra_data": {},
+		"images":         {},
+	}
+
 	// Keep parsing as long as we keep discovering new JSON blobs.
 	for {
 		changed := false
-		for _, v := range meta {
+		for k, v := range meta {
+			if _, skip := exclude[k]; skip {
+				delete(meta, k)
+				changed = true
+				continue
+			}
 			v = strings.TrimSpace(v)
 			if v == "" {
 				continue
 			}
 			var obj map[string]any
 			if json.Unmarshal([]byte(v), &obj) == nil {
-				for k, val := range obj {
-					key := strings.ToLower(k)
+				for kk, val := range obj {
+					key := strings.ToLower(kk)
+					if _, skip := exclude[key]; skip {
+						continue
+					}
 					if alias, ok := aliases[key]; ok {
 						key = alias
 					}
@@ -503,6 +517,13 @@ func mergeJSONMeta(meta map[string]string) {
 		}
 		if !changed {
 			break
+		}
+	}
+
+	// Set Source App for SwarmUI metadata
+	if _, ok := meta["swarm_version"]; ok {
+		if cur, ok := meta["sourceapp"]; !ok || cur == "" {
+			meta["sourceapp"] = "SwarmUI"
 		}
 	}
 }

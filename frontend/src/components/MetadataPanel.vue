@@ -23,6 +23,12 @@
         <input class="form-control" v-model="form.modelHash" />
       </div>
       <div class="mb-3">
+        <label class="form-label">Resolution</label>
+        <p class="form-control-plaintext">
+          {{ props.image.width }}x{{ props.image.height }}
+        </p>
+      </div>
+      <div class="mb-3">
         <label class="form-label">Loras</label>
         <div v-for="(l, i) in loras" :key="i" class="input-group mb-1">
           <input class="form-control" placeholder="Name" v-model="l.name" />

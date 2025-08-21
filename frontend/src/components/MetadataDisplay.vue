@@ -11,6 +11,10 @@
     </div>
     <p><strong>Model:</strong> {{ props.image.modelName }}</p>
     <p><strong>Model Hash:</strong> {{ props.image.modelHash }}</p>
+    <p>
+      <strong>Resolution:</strong>
+      {{ props.image.width }}x{{ props.image.height }}
+    </p>
     <p><strong>NSFW:</strong> {{ props.image.nsfw ? "Yes" : "No" }}</p>
     <div>
       <strong>Loras:</strong>
