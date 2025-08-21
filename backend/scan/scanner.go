@@ -144,6 +144,7 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	// Extract model hash, loras, and embeddings from sui_models
 	modelHash, loras, embeds := extractModels(metaMap)
 	assocLoras := []*db.Lora{}
+	assocEmbeds := []*db.Embedding{}
 	for _, lr := range loras {
 		name := lr.Name
 		hash := ""
@@ -197,6 +198,59 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 		}
 		assocLoras = append(assocLoras, &l)
 	}
+	for _, eb := range embeds {
+		name := eb.Name
+		hash := ""
+		if eb.Hash != nil {
+			hash = *eb.Hash
+		}
+		var e db.Embedding
+		if err := tx.Where("name = ?", name).First(&e).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				if hash != "" {
+					var existing db.Embedding
+					if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil {
+						log.Printf("hash conflict for embedding %s; using existing %s", name, existing.Name)
+						e = existing
+					} else {
+						e = db.Embedding{Name: name}
+						if err := tx.Create(&e).Error; err != nil {
+							return false, err
+						}
+					}
+				} else {
+					e = db.Embedding{Name: name}
+					if err := tx.Create(&e).Error; err != nil {
+						return false, err
+					}
+				}
+			} else {
+				return false, err
+			}
+		}
+		if hash != "" {
+			if e.Hash == nil {
+				e.Hash = &hash
+				if err := tx.Save(&e).Error; err != nil {
+					return false, err
+				}
+			} else if *e.Hash != hash {
+				var existing db.Embedding
+				if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil && existing.ID != e.ID {
+					log.Printf("hash conflict for embedding %s; using existing %s", name, existing.Name)
+					e = existing
+				} else if errors.Is(err, gorm.ErrRecordNotFound) {
+					e.Hash = &hash
+					if err := tx.Save(&e).Error; err != nil {
+						return false, err
+					}
+				} else if err != nil {
+					return false, err
+				}
+			}
+		}
+		assocEmbeds = append(assocEmbeds, &e)
+	}
 	if modelHash != "" && metaMap["model hash"] == "" {
 		metaMap["model hash"] = modelHash
 	}
@@ -209,13 +263,12 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	rel = filepath.ToSlash(rel)
 
 	img := db.Image{
-		Path:       rel,
-		FileName:   dName(path),
-		Ext:        strings.TrimPrefix(ext, "."),
-		SizeBytes:  size,
-		SHA256:     sha,
-		NSFW:       checkNSFW(metaMap, dName(path)),
-		Embeddings: embeds,
+		Path:      rel,
+		FileName:  dName(path),
+		Ext:       strings.TrimPrefix(ext, "."),
+		SizeBytes: size,
+		SHA256:    sha,
+		NSFW:      checkNSFW(metaMap, dName(path)),
 	}
 	if width > 0 {
 		img.Width = &width
@@ -325,6 +378,11 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	}
 	if len(assocLoras) > 0 {
 		if err := tx.Model(&img).Association("Loras").Append(assocLoras); err != nil {
+			return false, err
+		}
+	}
+	if len(assocEmbeds) > 0 {
+		if err := tx.Model(&img).Association("Embeddings").Append(assocEmbeds); err != nil {
 			return false, err
 		}
 	}
@@ -700,7 +758,12 @@ func extractModels(meta map[string]string) (string, []db.Lora, []db.Embedding) {
 			}
 		case "used_embeddings":
 			if name != "" || e.Hash != "" {
-				embeds = append(embeds, db.Embedding{Name: name, Hash: e.Hash})
+				var hptr *string
+				if e.Hash != "" {
+					h := e.Hash
+					hptr = &h
+				}
+				embeds = append(embeds, db.Embedding{Name: name, Hash: hptr})
 			}
 		}
 	}
