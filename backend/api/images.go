@@ -150,7 +150,7 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 func getImage(gdb *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var m db.Image
-                if err := gdb.Preload("Tags").Preload("Loras").First(&m, c.Param("id")).Error; err != nil {
+		if err := gdb.Preload("Tags").Preload("Loras").Preload("Embeddings").First(&m, c.Param("id")).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
 		}
@@ -199,7 +199,11 @@ func updateMetadata(gdb *gorm.DB) gin.HandlerFunc {
 					}
 					name, _ := obj["name"].(string)
 					hash, _ := obj["hash"].(string)
-					loras = append(loras, db.Lora{Name: name, Hash: hash})
+					var weight *float64
+					if w, ok := obj["weight"].(float64); ok {
+						weight = &w
+					}
+					loras = append(loras, db.Lora{Name: name, Hash: hash, Weight: weight})
 				}
 			}
 		}

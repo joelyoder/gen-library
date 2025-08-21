@@ -23,9 +23,22 @@
         <input class="form-control" v-model="form.modelHash" />
       </div>
       <div class="mb-3">
+        <label class="form-label">Resolution</label>
+        <p class="form-control-plaintext">
+          {{ props.image.width }}x{{ props.image.height }}
+        </p>
+      </div>
+      <div class="mb-3">
         <label class="form-label">Loras</label>
         <div v-for="(l, i) in loras" :key="i" class="input-group mb-1">
           <input class="form-control" placeholder="Name" v-model="l.name" />
+          <input
+            class="form-control"
+            placeholder="Weight"
+            type="number"
+            step="0.1"
+            v-model.number="l.weight"
+          />
           <input class="form-control" placeholder="Hash" v-model="l.hash" />
           <button
             class="btn btn-outline-danger"
@@ -158,7 +171,7 @@ const form = reactive({
 });
 
 const tags = ref<string[]>([]);
-const loras = ref<{ name: string; hash: string }[]>([]);
+const loras = ref<{ name: string; hash: string; weight?: number }[]>([]);
 const rawOpen = ref(false);
 
 watch(
@@ -179,7 +192,11 @@ watch(
     form.rating = img?.rating ?? 0;
     tags.value = img?.tags?.map((t: any) => t.name) ?? [];
     loras.value =
-      img?.loras?.map((l: any) => ({ name: l.name, hash: l.hash })) ?? [];
+      img?.loras?.map((l: any) => ({
+        name: l.name,
+        hash: l.hash,
+        weight: l.weight,
+      })) ?? [];
     rawOpen.value = false;
   },
   { immediate: true },
@@ -207,7 +224,9 @@ async function onSave() {
     scheduler: form.scheduler || null,
     clipSkip: form.clipSkip !== "" ? Number(form.clipSkip) : null,
     sourceApp: form.sourceApp || null,
-    loras: loras.value.filter((l) => l.name || l.hash),
+    loras: loras.value
+      .filter((l) => l.name || l.hash)
+      .map((l) => ({ name: l.name, hash: l.hash, weight: l.weight })),
     nsfw: form.nsfw,
   };
   await updateImageMetadata(props.image.id, payload);
@@ -215,7 +234,7 @@ async function onSave() {
 }
 
 function addLora() {
-  loras.value.push({ name: "", hash: "" });
+  loras.value.push({ name: "", hash: "", weight: undefined });
 }
 
 function removeLora(i: number) {

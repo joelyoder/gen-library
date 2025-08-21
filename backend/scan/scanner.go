@@ -140,8 +140,20 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	// Parse generation parameters if present
 	normalizeParameters(metaMap)
 
-	// Extract model hash and any loras from sui_models
-	modelHash, loras := extractModels(metaMap)
+	// Extract model hash, loras, and embeddings from sui_models
+	modelHash, loras, embeds := extractModels(metaMap)
+	if ws, ok := metaMap["loraweights"]; ok {
+		var arr []string
+		if json.Unmarshal([]byte(ws), &arr) == nil {
+			for i := range loras {
+				if i < len(arr) {
+					if fv, err := strconv.ParseFloat(arr[i], 64); err == nil {
+						loras[i].Weight = &fv
+					}
+				}
+			}
+		}
+	}
 	if modelHash != "" && metaMap["model hash"] == "" {
 		metaMap["model hash"] = modelHash
 	}
@@ -154,13 +166,14 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	rel = filepath.ToSlash(rel)
 
 	img := db.Image{
-		Path:      rel,
-		FileName:  dName(path),
-		Ext:       strings.TrimPrefix(ext, "."),
-		SizeBytes: size,
-		SHA256:    sha,
-		NSFW:      checkNSFW(metaMap, dName(path)),
-		Loras:     loras,
+		Path:       rel,
+		FileName:   dName(path),
+		Ext:        strings.TrimPrefix(ext, "."),
+		SizeBytes:  size,
+		SHA256:     sha,
+		NSFW:       checkNSFW(metaMap, dName(path)),
+		Loras:      loras,
+		Embeddings: embeds,
 	}
 	if width > 0 {
 		img.Width = &width
@@ -212,6 +225,32 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 		if iv, err := strconv.Atoi(v); err == nil {
 			img.ClipSkip = &iv
 		}
+	}
+	if v, ok := metaMap["variationseed"]; ok {
+		if iv, err := strconv.Atoi(v); err == nil {
+			img.VariationSeed = &iv
+		}
+	}
+	if v, ok := metaMap["variationseedstrength"]; ok {
+		if fv, err := strconv.ParseFloat(v, 64); err == nil {
+			img.VariationSeedStrength = &fv
+		}
+	}
+	if v, ok := metaMap["aspectratio"]; ok {
+		img.AspectRatio = &v
+	}
+	if v, ok := metaMap["refinercontrolpercentage"]; ok {
+		if fv, err := strconv.ParseFloat(v, 64); err == nil {
+			img.RefinerControlPercentage = &fv
+		}
+	}
+	if v, ok := metaMap["refinerupscale"]; ok {
+		if fv, err := strconv.ParseFloat(v, 64); err == nil {
+			img.RefinerUpscale = &fv
+		}
+	}
+	if v, ok := metaMap["refinerupscalemethod"]; ok {
+		img.RefinerUpscaleMethod = &v
 	}
 
 	// Store raw metadata JSON
@@ -463,18 +502,32 @@ func mergeJSONMeta(meta map[string]string) {
 		"clip_skip":       "clip skip",
 	}
 
+	// Keys to exclude entirely from the metadata map.
+	exclude := map[string]struct{}{
+		"sui_extra_data": {},
+		"images":         {},
+	}
+
 	// Keep parsing as long as we keep discovering new JSON blobs.
 	for {
 		changed := false
-		for _, v := range meta {
+		for k, v := range meta {
+			if _, skip := exclude[k]; skip {
+				delete(meta, k)
+				changed = true
+				continue
+			}
 			v = strings.TrimSpace(v)
 			if v == "" {
 				continue
 			}
 			var obj map[string]any
 			if json.Unmarshal([]byte(v), &obj) == nil {
-				for k, val := range obj {
-					key := strings.ToLower(k)
+				for kk, val := range obj {
+					key := strings.ToLower(kk)
+					if _, skip := exclude[key]; skip {
+						continue
+					}
 					if alias, ok := aliases[key]; ok {
 						key = alias
 					}
@@ -503,6 +556,13 @@ func mergeJSONMeta(meta map[string]string) {
 		}
 		if !changed {
 			break
+		}
+	}
+
+	// Set Source App for SwarmUI metadata
+	if _, ok := meta["swarm_version"]; ok {
+		if cur, ok := meta["sourceapp"]; !ok || cur == "" {
+			meta["sourceapp"] = "SwarmUI"
 		}
 	}
 }
@@ -551,12 +611,12 @@ func normalizeParameters(meta map[string]string) {
 	}
 }
 
-// extractModels parses the sui_models JSON array and returns the model hash and
-// any loras used by the generation. Loras are returned as a slice of db.Lora.
-func extractModels(meta map[string]string) (string, []db.Lora) {
+// extractModels parses the sui_models JSON array and returns the model hash,
+// any loras, and any embeddings used by the generation.
+func extractModels(meta map[string]string) (string, []db.Lora, []db.Embedding) {
 	s, ok := meta["sui_models"]
 	if !ok {
-		return "", nil
+		return "", nil, nil
 	}
 	var entries []struct {
 		Name  string `json:"name"`
@@ -564,12 +624,16 @@ func extractModels(meta map[string]string) (string, []db.Lora) {
 		Hash  string `json:"hash"`
 	}
 	if err := json.Unmarshal([]byte(s), &entries); err != nil {
-		return "", nil
+		return "", nil, nil
 	}
 	var modelHash string
 	loras := []db.Lora{}
+	embeds := []db.Embedding{}
 	for _, e := range entries {
 		name := strings.TrimSuffix(e.Name, ".safetensors")
+		if strings.HasPrefix(name, "LyCORIS/") {
+			name = strings.TrimPrefix(name, "LyCORIS/")
+		}
 		switch e.Param {
 		case "model":
 			if e.Hash != "" {
@@ -582,9 +646,13 @@ func extractModels(meta map[string]string) (string, []db.Lora) {
 			if name != "" || e.Hash != "" {
 				loras = append(loras, db.Lora{Name: name, Hash: e.Hash})
 			}
+		case "used_embeddings":
+			if name != "" || e.Hash != "" {
+				embeds = append(embeds, db.Embedding{Name: name, Hash: e.Hash})
+			}
 		}
 	}
-	return modelHash, loras
+	return modelHash, loras, embeds
 }
 
 // checkNSFW applies a simple keyword heuristic on prompts and file name.
