@@ -42,10 +42,9 @@ type Image struct {
 
 	RawMetadata datatypes.JSON `json:"rawMetadata"`
 
-	Loras      []*Lora        `gorm:"many2many:image_loras;constraint:OnDelete:CASCADE" json:"loras"`
-	Embeddings []Embedding    `gorm:"constraint:OnDelete:CASCADE" json:"embeddings"`
-	Tags       []*Tag         `gorm:"many2many:image_tags;constraint:OnDelete:CASCADE" json:"tags"`
-	UserMeta   []UserMetadata `gorm:"constraint:OnDelete:CASCADE" json:"userMeta"`
+	Loras      []*Lora     `gorm:"many2many:image_loras;constraint:OnDelete:CASCADE" json:"loras"`
+	Embeddings []Embedding `gorm:"constraint:OnDelete:CASCADE" json:"embeddings"`
+	Tags       []*Tag      `gorm:"many2many:image_tags;constraint:OnDelete:CASCADE" json:"tags"`
 }
 
 type Tag struct {
@@ -74,13 +73,6 @@ type Embedding struct {
 	ImageID uint   `gorm:"index;not null" json:"imageId"`
 	Name    string `json:"name"`
 	Hash    string `json:"hash"`
-}
-
-type UserMetadata struct {
-	ID      uint   `gorm:"primaryKey" json:"id"`
-	ImageID uint   `gorm:"index;not null" json:"imageId"`
-	Key     string `gorm:"not null" json:"key"`
-	Value   string `gorm:"not null" json:"value"`
 }
 
 type Setting struct {
