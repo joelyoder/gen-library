@@ -11,12 +11,27 @@
     </div>
     <p><strong>Model:</strong> {{ props.image.modelName }}</p>
     <p><strong>Model Hash:</strong> {{ props.image.modelHash }}</p>
+    <p>
+      <strong>Resolution:</strong>
+      {{ props.image.width }}x{{ props.image.height }}
+    </p>
     <p><strong>NSFW:</strong> {{ props.image.nsfw ? "Yes" : "No" }}</p>
     <div>
       <strong>Loras:</strong>
       <div v-if="props.image.loras && props.image.loras.length">
         <div v-for="(l, i) in props.image.loras" :key="i">
-          {{ l.name }} ({{ l.hash }})
+          {{ l.name }} ({{ l.hash }}<span v-if="l.weight !== undefined">, w={{
+            l.weight
+          }}</span>)
+        </div>
+      </div>
+      <div v-else class="text-muted">None</div>
+    </div>
+    <div>
+      <strong>Embeddings:</strong>
+      <div v-if="props.image.embeddings && props.image.embeddings.length">
+        <div v-for="(e, i) in props.image.embeddings" :key="i">
+          {{ e.name }} ({{ e.hash }})
         </div>
       </div>
       <div v-else class="text-muted">None</div>
