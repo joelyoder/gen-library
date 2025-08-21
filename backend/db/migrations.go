@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -69,11 +70,15 @@ func ApplyMigrations(gdb *gorm.DB) error {
                );`,
 		`CREATE TABLE IF NOT EXISTS loras (
                        id INTEGER PRIMARY KEY,
+                       name TEXT UNIQUE NOT NULL,
+                       hash TEXT
+               );`,
+		`CREATE TABLE IF NOT EXISTS image_loras (
                        image_id INTEGER NOT NULL,
-                       name TEXT NOT NULL,
-                       hash TEXT,
-                       weight REAL,
-                       FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
+                       lora_id INTEGER NOT NULL,
+                       PRIMARY KEY (image_id, lora_id),
+                       FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE,
+                       FOREIGN KEY (lora_id) REFERENCES loras(id) ON DELETE CASCADE
                );`,
 		`CREATE TABLE IF NOT EXISTS embeddings (
                        id INTEGER PRIMARY KEY,
@@ -82,13 +87,16 @@ func ApplyMigrations(gdb *gorm.DB) error {
                        hash TEXT,
                        FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
                );`,
+		`ALTER TABLE loras DROP COLUMN image_id;`,
 		// Indexes
 		`CREATE INDEX IF NOT EXISTS images_nsfw_idx ON images(nsfw);`,
 		`CREATE INDEX IF NOT EXISTS images_rating_idx ON images(rating);`,
 		`CREATE INDEX IF NOT EXISTS images_model_idx ON images(model_name);`,
 		`CREATE INDEX IF NOT EXISTS image_tags_image_idx ON image_tags(image_id);`,
 		`CREATE INDEX IF NOT EXISTS image_tags_tag_idx ON image_tags(tag_id);`,
-		`CREATE INDEX IF NOT EXISTS loras_image_idx ON loras(image_id);`,
+		`CREATE INDEX IF NOT EXISTS loras_hash_idx ON loras(hash);`,
+		`CREATE INDEX IF NOT EXISTS image_loras_image_idx ON image_loras(image_id);`,
+		`CREATE INDEX IF NOT EXISTS image_loras_lora_idx ON image_loras(lora_id);`,
 		`CREATE INDEX IF NOT EXISTS embeddings_image_idx ON embeddings(image_id);`,
 		// FTS5 virtual table (content-linked)
 		`CREATE VIRTUAL TABLE IF NOT EXISTS images_fts USING fts5(
@@ -112,6 +120,9 @@ func ApplyMigrations(gdb *gorm.DB) error {
 
 	for _, s := range stmts {
 		if err := gdb.Exec(s).Error; err != nil {
+			if strings.Contains(s, "ALTER TABLE loras DROP COLUMN image_id") && strings.Contains(err.Error(), "no such column") {
+				continue
+			}
 			return fmt.Errorf("migration failed on: %s\nerr: %w", s, err)
 		}
 	}

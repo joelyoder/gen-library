@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -185,7 +186,7 @@ func updateMetadata(gdb *gorm.DB) gin.HandlerFunc {
 		}
 
 		var (
-			loras        []db.Lora
+			loras        []*db.Lora
 			lorasPresent bool
 		)
 		if raw, ok := payload["loras"]; ok {
@@ -199,11 +200,64 @@ func updateMetadata(gdb *gorm.DB) gin.HandlerFunc {
 					}
 					name, _ := obj["name"].(string)
 					hash, _ := obj["hash"].(string)
-					var weight *float64
-					if w, ok := obj["weight"].(float64); ok {
-						weight = &w
+					var l db.Lora
+					if err := gdb.Where("name = ?", name).First(&l).Error; err != nil {
+						if errors.Is(err, gorm.ErrRecordNotFound) {
+							if hash != "" {
+								var existing db.Lora
+								if err := gdb.Where("hash = ?", hash).First(&existing).Error; err == nil {
+									log.Printf("hash conflict for lora %s; using existing %s", name, existing.Name)
+									l = existing
+								} else if errors.Is(err, gorm.ErrRecordNotFound) {
+									l = db.Lora{Name: name}
+									if hash != "" {
+										l.Hash = &hash
+									}
+									if err := gdb.Create(&l).Error; err != nil {
+										c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+										return
+									}
+								} else {
+									c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+									return
+								}
+							} else {
+								l = db.Lora{Name: name}
+								if err := gdb.Create(&l).Error; err != nil {
+									c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+									return
+								}
+							}
+						} else {
+							c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+							return
+						}
 					}
-					loras = append(loras, db.Lora{Name: name, Hash: hash, Weight: weight})
+					if hash != "" {
+						if l.Hash == nil {
+							l.Hash = &hash
+							if err := gdb.Save(&l).Error; err != nil {
+								c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+								return
+							}
+						} else if *l.Hash != hash {
+							var existing db.Lora
+							if err := gdb.Where("hash = ?", hash).First(&existing).Error; err == nil && existing.ID != l.ID {
+								log.Printf("hash conflict for lora %s; using existing %s", name, existing.Name)
+								l = existing
+							} else if errors.Is(err, gorm.ErrRecordNotFound) {
+								l.Hash = &hash
+								if err := gdb.Save(&l).Error; err != nil {
+									c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+									return
+								}
+							} else if err != nil {
+								c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+								return
+							}
+						}
+					}
+					loras = append(loras, &l)
 				}
 			}
 		}
@@ -224,15 +278,13 @@ func updateMetadata(gdb *gorm.DB) gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			if err := gdb.Where("image_id = ?", uid).Delete(&db.Lora{}).Error; err != nil {
+			img := db.Image{ID: uint(uid)}
+			if err := gdb.Model(&img).Association("Loras").Clear(); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
 			if len(loras) > 0 {
-				for i := range loras {
-					loras[i].ImageID = uint(uid)
-				}
-				if err := gdb.Create(&loras).Error; err != nil {
+				if err := gdb.Model(&img).Association("Loras").Append(loras); err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
 				}
