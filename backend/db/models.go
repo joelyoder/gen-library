@@ -42,9 +42,9 @@ type Image struct {
 
 	RawMetadata datatypes.JSON `json:"rawMetadata"`
 
-	Loras      []*Lora     `gorm:"many2many:image_loras;constraint:OnDelete:CASCADE" json:"loras"`
-	Embeddings []Embedding `gorm:"constraint:OnDelete:CASCADE" json:"embeddings"`
-	Tags       []*Tag      `gorm:"many2many:image_tags;constraint:OnDelete:CASCADE" json:"tags"`
+	Loras      []*Lora      `gorm:"many2many:image_loras;constraint:OnDelete:CASCADE" json:"loras"`
+	Embeddings []*Embedding `gorm:"many2many:image_embeddings;constraint:OnDelete:CASCADE" json:"embeddings"`
+	Tags       []*Tag       `gorm:"many2many:image_tags;constraint:OnDelete:CASCADE" json:"tags"`
 }
 
 type Tag struct {
@@ -62,6 +62,11 @@ type ImageLora struct {
 	LoraID  uint `gorm:"primaryKey" json:"loraId"`
 }
 
+type ImageEmbedding struct {
+	ImageID     uint `gorm:"primaryKey" json:"imageId"`
+	EmbeddingID uint `gorm:"primaryKey" json:"embeddingId"`
+}
+
 type Lora struct {
 	ID   uint    `gorm:"primaryKey" json:"id"`
 	Name string  `gorm:"uniqueIndex;not null" json:"name"`
@@ -69,10 +74,9 @@ type Lora struct {
 }
 
 type Embedding struct {
-	ID      uint   `gorm:"primaryKey" json:"id"`
-	ImageID uint   `gorm:"index;not null" json:"imageId"`
-	Name    string `json:"name"`
-	Hash    string `json:"hash"`
+	ID   uint    `gorm:"primaryKey" json:"id"`
+	Name string  `gorm:"uniqueIndex;not null" json:"name"`
+	Hash *string `gorm:"index" json:"hash"`
 }
 
 type Setting struct {

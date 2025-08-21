@@ -72,12 +72,18 @@ func ApplyMigrations(gdb *gorm.DB) error {
                        FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE,
                        FOREIGN KEY (lora_id) REFERENCES loras(id) ON DELETE CASCADE
                );`,
+		`DROP TABLE IF EXISTS embeddings;`,
 		`CREATE TABLE IF NOT EXISTS embeddings (
                        id INTEGER PRIMARY KEY,
+                       name TEXT UNIQUE NOT NULL,
+                       hash TEXT
+               );`,
+		`CREATE TABLE IF NOT EXISTS image_embeddings (
                        image_id INTEGER NOT NULL,
-                       name TEXT NOT NULL,
-                       hash TEXT,
-                       FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
+                       embedding_id INTEGER NOT NULL,
+                       PRIMARY KEY (image_id, embedding_id),
+                       FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE,
+                       FOREIGN KEY (embedding_id) REFERENCES embeddings(id) ON DELETE CASCADE
                );`,
 		`ALTER TABLE loras DROP COLUMN image_id;`,
 		// Indexes
@@ -89,7 +95,9 @@ func ApplyMigrations(gdb *gorm.DB) error {
 		`CREATE INDEX IF NOT EXISTS loras_hash_idx ON loras(hash);`,
 		`CREATE INDEX IF NOT EXISTS image_loras_image_idx ON image_loras(image_id);`,
 		`CREATE INDEX IF NOT EXISTS image_loras_lora_idx ON image_loras(lora_id);`,
-		`CREATE INDEX IF NOT EXISTS embeddings_image_idx ON embeddings(image_id);`,
+		`CREATE INDEX IF NOT EXISTS embeddings_hash_idx ON embeddings(hash);`,
+		`CREATE INDEX IF NOT EXISTS image_embeddings_image_idx ON image_embeddings(image_id);`,
+		`CREATE INDEX IF NOT EXISTS image_embeddings_embedding_idx ON image_embeddings(embedding_id);`,
 		// FTS5 virtual table (content-linked)
 		`CREATE VIRTUAL TABLE IF NOT EXISTS images_fts USING fts5(
 			file_name, model_name, prompt, negative_prompt, raw_metadata,
