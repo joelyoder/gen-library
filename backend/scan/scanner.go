@@ -143,9 +143,17 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 
 	// Extract model hash, loras, and embeddings from sui_models
 	modelHash, loras, embeds := extractModels(metaMap)
-	assocLoras := []*db.Lora{}
+	var loraWeights []float64
+	if wstr, ok := metaMap["loraweights"]; ok {
+		loraWeights = parseLoraWeights(wstr)
+	}
+	type loraAssoc struct {
+		l      *db.Lora
+		weight *float64
+	}
+	loraAssocs := []loraAssoc{}
 	assocEmbeds := []*db.Embedding{}
-	for _, lr := range loras {
+	for i, lr := range loras {
 		name := lr.Name
 		hash := ""
 		if lr.Hash != nil {
@@ -196,7 +204,12 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 				}
 			}
 		}
-		assocLoras = append(assocLoras, &l)
+		var weight *float64
+		if i < len(loraWeights) {
+			w := loraWeights[i]
+			weight = &w
+		}
+		loraAssocs = append(loraAssocs, loraAssoc{l: &l, weight: weight})
 	}
 	for _, eb := range embeds {
 		name := eb.Name
@@ -255,6 +268,56 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 		metaMap["model hash"] = modelHash
 	}
 
+	var model *db.Model
+	name, hasName := metaMap["model"]
+	hash := metaMap["model hash"]
+	if hasName || hash != "" {
+		if name != "" {
+			var m db.Model
+			if err := tx.Where("name = ?", name).First(&m).Error; err == nil {
+				model = &m
+			} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return false, err
+			}
+		}
+		if model == nil && hash != "" {
+			var m db.Model
+			if err := tx.Where("hash = ?", hash).First(&m).Error; err == nil {
+				model = &m
+			} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return false, err
+			}
+		}
+		if model == nil && name != "" {
+			m := db.Model{Name: name}
+			if err := tx.Create(&m).Error; err != nil {
+				return false, err
+			}
+			model = &m
+		}
+		if model != nil && hash != "" {
+			if model.Hash == nil {
+				model.Hash = &hash
+				if err := tx.Save(model).Error; err != nil {
+					return false, err
+				}
+			} else if *model.Hash != hash {
+				var existing db.Model
+				if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil && existing.ID != model.ID {
+					log.Printf("hash conflict for model %s; using existing %s", name, existing.Name)
+					model = &existing
+				} else if errors.Is(err, gorm.ErrRecordNotFound) {
+					model.Hash = &hash
+					if err := tx.Save(model).Error; err != nil {
+						return false, err
+					}
+				} else if err != nil {
+					return false, err
+				}
+			}
+		}
+	}
+
 	// Prepare Image model
 	rel, err := filepath.Rel(root, path)
 	if err != nil {
@@ -284,12 +347,6 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	// Normalized fields from metaMap
 	if v, ok := metaMap["sourceapp"]; ok {
 		img.SourceApp = &v
-	}
-	if v, ok := metaMap["model"]; ok {
-		img.ModelName = &v
-	}
-	if v, ok := metaMap["model hash"]; ok {
-		img.ModelHash = &v
 	}
 	if v, ok := metaMap["prompt"]; ok {
 		img.Prompt = &v
@@ -347,6 +404,9 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	if v, ok := metaMap["refinerupscalemethod"]; ok {
 		img.RefinerUpscaleMethod = &v
 	}
+	if model != nil {
+		img.ModelID = &model.ID
+	}
 
 	// Store raw metadata JSON
 	if len(metaMap) > 0 {
@@ -376,9 +436,12 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	if err := tx.Create(&img).Error; err != nil {
 		return false, err
 	}
-	if len(assocLoras) > 0 {
-		if err := tx.Model(&img).Association("Loras").Append(assocLoras); err != nil {
-			return false, err
+	if len(loraAssocs) > 0 {
+		for _, la := range loraAssocs {
+			il := db.ImageLora{ImageID: img.ID, LoraID: la.l.ID, Weight: la.weight}
+			if err := tx.Create(&il).Error; err != nil {
+				return false, err
+			}
 		}
 	}
 	if len(assocEmbeds) > 0 {
@@ -714,6 +777,35 @@ func normalizeParameters(meta map[string]string) {
 			meta[key] = val
 		}
 	}
+}
+
+// parseLoraWeights attempts to parse a list of LoRA weights from various formats.
+func parseLoraWeights(s string) []float64 {
+	// Try JSON array of numbers first
+	var floats []float64
+	if err := json.Unmarshal([]byte(s), &floats); err == nil {
+		return floats
+	} else {
+		floats = nil
+	}
+	// Try JSON array of strings
+	var strSlice []string
+	if err := json.Unmarshal([]byte(s), &strSlice); err == nil {
+		for _, p := range strSlice {
+			if fv, err := strconv.ParseFloat(strings.TrimSpace(p), 64); err == nil {
+				floats = append(floats, fv)
+			}
+		}
+		return floats
+	}
+	// Fallback to comma-separated values
+	parts := strings.Split(s, ",")
+	for _, p := range parts {
+		if fv, err := strconv.ParseFloat(strings.TrimSpace(p), 64); err == nil {
+			floats = append(floats, fv)
+		}
+	}
+	return floats
 }
 
 // extractModels parses the sui_models JSON array and returns the model hash,
