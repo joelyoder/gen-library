@@ -864,7 +864,7 @@ func extractModels(meta map[string]string) (string, []db.Lora, []db.Embedding) {
 
 // checkNSFW applies a simple keyword heuristic on prompts and file name.
 func checkNSFW(meta map[string]string, filename string) bool {
-	keywords := []string{"nsfw", "nude", "naked", "sex", "fuck", "topless", "bottomless", "pubic", "cum", "porn", "erotic", "pussy", "cock", "penis", "vagina"}
+	keywords := []string{"nude", "naked", "sex", "fuck", "topless", "bottomless", "pubic", "cum", "porn", "erotic", "pussy", "cock", "penis", "vagina", "boob", "panties"}
 	text := strings.ToLower(filename)
 	if p, ok := meta["prompt"]; ok {
 		text += " " + strings.ToLower(p)
