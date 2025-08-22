@@ -331,7 +331,7 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 		Ext:       strings.TrimPrefix(ext, "."),
 		SizeBytes: size,
 		SHA256:    sha,
-		NSFW:      checkNSFW(metaMap, dName(path)),
+		NSFW:      checkNSFW(metaMap),
 	}
 	if width > 0 {
 		img.Width = &width
@@ -862,16 +862,15 @@ func extractModels(meta map[string]string) (string, []db.Lora, []db.Embedding) {
 	return modelHash, loras, embeds
 }
 
-// checkNSFW applies a simple keyword heuristic on prompts and file name.
-func checkNSFW(meta map[string]string, filename string) bool {
+// checkNSFW applies a simple keyword heuristic on prompts.
+func checkNSFW(meta map[string]string) bool {
 	keywords := []string{"nude", "naked", "sex", "fuck", "topless", "bottomless", "pubic", "cum", "porn", "erotic", "pussy", "cock", "penis", "vagina", "boob", "panties"}
-	text := strings.ToLower(filename)
 	if p, ok := meta["prompt"]; ok {
-		text += " " + strings.ToLower(p)
-	}
-	for _, k := range keywords {
-		if strings.Contains(text, k) {
-			return true
+		text := strings.ToLower(p)
+		for _, k := range keywords {
+			if strings.Contains(text, k) {
+				return true
+			}
 		}
 	}
 	return false
