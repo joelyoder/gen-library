@@ -211,6 +211,30 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 		}
 		loraAssocs = append(loraAssocs, loraAssoc{l: &l, weight: weight})
 	}
+	existingLoras := make(map[string]struct{})
+	for _, la := range loraAssocs {
+		existingLoras[la.l.Name] = struct{}{}
+	}
+	if prompt, ok := metaMap["prompt"]; ok {
+		for _, pl := range extractPromptLoras(prompt) {
+			if _, seen := existingLoras[pl.name]; seen {
+				continue
+			}
+			var l db.Lora
+			if err := tx.Where("name = ?", pl.name).First(&l).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					l = db.Lora{Name: pl.name}
+					if err := tx.Create(&l).Error; err != nil {
+						return false, err
+					}
+				} else {
+					return false, err
+				}
+			}
+			loraAssocs = append(loraAssocs, loraAssoc{l: &l, weight: pl.weight})
+			existingLoras[pl.name] = struct{}{}
+		}
+	}
 	for _, eb := range embeds {
 		name := eb.Name
 		hash := ""
@@ -777,6 +801,27 @@ func normalizeParameters(meta map[string]string) {
 			meta[key] = val
 		}
 	}
+}
+
+type promptLora struct {
+	name   string
+	weight *float64
+}
+
+func extractPromptLoras(s string) []promptLora {
+        re := regexp.MustCompile(`<(?:lora|lyco):([^:>]+)(?::([0-9.]+))?>`)
+	matches := re.FindAllStringSubmatch(s, -1)
+	res := make([]promptLora, 0, len(matches))
+	for _, m := range matches {
+		var w *float64
+		if len(m) > 2 && m[2] != "" {
+			if fv, err := strconv.ParseFloat(m[2], 64); err == nil {
+				w = &fv
+			}
+		}
+		res = append(res, promptLora{name: m[1], weight: w})
+	}
+	return res
 }
 
 // parseLoraWeights attempts to parse a list of LoRA weights from various formats.
