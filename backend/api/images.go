@@ -60,7 +60,7 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 		sort := c.DefaultQuery("sort", "imported_at")
 		order := c.DefaultQuery("order", "desc")
 		if !inSet(sort, []string{"created_time", "imported_at", "file_name"}) {
-			sort = "imported_at"
+			sort = "created_time"
 		}
 		if !inSet(strings.ToLower(order), []string{"asc", "desc"}) {
 			order = "desc"

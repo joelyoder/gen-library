@@ -33,8 +33,8 @@
         <div class="col-6">
           <label class="form-label">Sort</label>
           <select class="form-select" v-model="localSort">
-            <option value="imported_at">Imported</option>
             <option value="created_time">Created</option>
+            <option value="imported_at">Imported</option>
             <option value="file_name">File name</option>
           </select>
         </div>

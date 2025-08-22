@@ -27,7 +27,7 @@ export async function listImages(params: ListParams) {
   if (params.q) p.set("q", params.q);
   if (params.tags && params.tags.length) p.set("tags", params.tags.join(","));
   p.set("nsfw", params.nsfw ?? "hide");
-  p.set("sort", params.sort ?? "imported_at");
+  p.set("sort", params.sort ?? "created_time");
   p.set("order", params.order ?? "desc");
   if (params.rating !== undefined) p.set("rating", String(params.rating));
   const { data } = await api.get(`/api/images?${p.toString()}`);
