@@ -120,7 +120,7 @@ const page = ref(1);
 const pageSize = ref(50);
 const q = ref("");
 const tags = ref<string[]>([]);
-const sort = ref<"created_time" | "imported_at" | "file_name">("imported_at");
+const sort = ref<"created_time" | "imported_at" | "file_name">("created_time");
 const order = ref<"asc" | "desc">("desc");
 const rating = ref<number | null>(null);
 
