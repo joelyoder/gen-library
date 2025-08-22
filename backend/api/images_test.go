@@ -1,17 +1,18 @@
-package api
+package api_test
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"testing"
+        "encoding/json"
+        "net/http"
+        "net/http/httptest"
+        "testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+        "github.com/gin-gonic/gin"
+        "github.com/stretchr/testify/require"
+        "gorm.io/driver/sqlite"
+        "gorm.io/gorm"
 
-	"gen-library/backend/db"
+        api "gen-library/backend/api"
+        "gen-library/backend/db"
 )
 
 // setupRouter initializes an in-memory database, seeds test data and returns a gin.Engine.
@@ -41,10 +42,10 @@ func setupRouter(t *testing.T) (*gin.Engine, bool) {
 	// Determine if FTS is available
 	hasFTS := gdb.Exec("SELECT 1 FROM images_fts LIMIT 1").Error == nil
 
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.GET("/images", listImages(gdb))
-	return r, hasFTS
+        gin.SetMode(gin.TestMode)
+        r := gin.New()
+        api.RegisterRoutes(r, gdb)
+        return r, hasFTS
 }
 
 func getFileNames(t *testing.T, r *gin.Engine, url string) []string {
@@ -68,32 +69,32 @@ func getFileNames(t *testing.T, r *gin.Engine, url string) []string {
 }
 
 func TestListImagesFilters(t *testing.T) {
-	r, hasFTS := setupRouter(t)
+        r, hasFTS := setupRouter(t)
 
 	t.Run("nsfw modes", func(t *testing.T) {
-		names := getFileNames(t, r, "/images")
-		require.ElementsMatch(t, []string{"cat", "sunflower"}, names)
+                names := getFileNames(t, r, "/api/images")
+                require.ElementsMatch(t, []string{"cat", "sunflower"}, names)
 
-		names = getFileNames(t, r, "/images?nsfw=show")
-		require.ElementsMatch(t, []string{"cat", "dog", "sunflower"}, names)
+                names = getFileNames(t, r, "/api/images?nsfw=show")
+                require.ElementsMatch(t, []string{"cat", "dog", "sunflower"}, names)
 
-		names = getFileNames(t, r, "/images?nsfw=only")
-		require.ElementsMatch(t, []string{"dog"}, names)
-	})
+                names = getFileNames(t, r, "/api/images?nsfw=only")
+                require.ElementsMatch(t, []string{"dog"}, names)
+        })
 
 	t.Run("fts wildcard search", func(t *testing.T) {
 		if !hasFTS {
 			t.Skip("fts5 not available")
 		}
-		names := getFileNames(t, r, "/images?q=sunf")
-		require.ElementsMatch(t, []string{"sunflower"}, names)
-	})
+                names := getFileNames(t, r, "/api/images?q=sunf")
+                require.ElementsMatch(t, []string{"sunflower"}, names)
+        })
 
 	t.Run("tag requirements", func(t *testing.T) {
-		names := getFileNames(t, r, "/images?tags=animal&nsfw=show")
-		require.ElementsMatch(t, []string{"cat", "dog"}, names)
+                names := getFileNames(t, r, "/api/images?tags=animal&nsfw=show")
+                require.ElementsMatch(t, []string{"cat", "dog"}, names)
 
-		names = getFileNames(t, r, "/images?tags=animal,cat&nsfw=show")
-		require.ElementsMatch(t, []string{"cat"}, names)
-	})
+                names = getFileNames(t, r, "/api/images?tags=animal,cat&nsfw=show")
+                require.ElementsMatch(t, []string{"cat"}, names)
+        })
 }
