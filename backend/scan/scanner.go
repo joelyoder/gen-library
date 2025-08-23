@@ -58,7 +58,8 @@ func ScanFolder(gdb *gorm.DB, root string) (int, error) {
 			added, err := processFile(tx, absRoot, path, ext)
 			if err != nil {
 				// Log and continue scanning
-				logger.Warn().Err(err).Msg("scan")
+				log := logger.With().Str("component", "scan").Str("path", path).Str("event", "scan").Logger()
+				log.Warn().Err(err).Msg("")
 				return nil
 			}
 			if added {
@@ -131,7 +132,8 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	metaMap, err := extractMetadata(path, ext)
 	if err != nil {
 		// non-fatal, continue with what we have
-		logger.Warn().Str("path", path).Err(err).Msg("metadata error")
+		log := logger.With().Str("component", "scan").Str("path", path).Str("event", "metadata").Logger()
+		log.Warn().Err(err).Msg("")
 		metaMap = map[string]string{}
 	}
 
@@ -165,7 +167,8 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 				if hash != "" {
 					var existing db.Lora
 					if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil {
-						logger.Warn().Str("lora", name).Str("existing", existing.Name).Msg("hash conflict for lora; using existing")
+						log := logger.With().Str("component", "scan").Str("event", "hash_conflict").Str("lora", name).Str("existing", existing.Name).Logger()
+						log.Warn().Msg("")
 						l = existing
 					} else {
 						l = db.Lora{Name: name}
@@ -192,7 +195,8 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 			} else if *l.Hash != hash {
 				var existing db.Lora
 				if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil && existing.ID != l.ID {
-					logger.Warn().Str("lora", name).Str("existing", existing.Name).Msg("hash conflict for lora; using existing")
+					log := logger.With().Str("component", "scan").Str("event", "hash_conflict").Str("lora", name).Str("existing", existing.Name).Logger()
+					log.Warn().Msg("")
 					l = existing
 				} else if errors.Is(err, gorm.ErrRecordNotFound) {
 					l.Hash = &hash
@@ -247,7 +251,8 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 				if hash != "" {
 					var existing db.Embedding
 					if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil {
-						logger.Warn().Str("embedding", name).Str("existing", existing.Name).Msg("hash conflict for embedding; using existing")
+						log := logger.With().Str("component", "scan").Str("event", "hash_conflict").Str("embedding", name).Str("existing", existing.Name).Logger()
+						log.Warn().Msg("")
 						e = existing
 					} else {
 						e = db.Embedding{Name: name}
@@ -274,7 +279,8 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 			} else if *e.Hash != hash {
 				var existing db.Embedding
 				if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil && existing.ID != e.ID {
-					logger.Warn().Str("embedding", name).Str("existing", existing.Name).Msg("hash conflict for embedding; using existing")
+					log := logger.With().Str("component", "scan").Str("event", "hash_conflict").Str("embedding", name).Str("existing", existing.Name).Logger()
+					log.Warn().Msg("")
 					e = existing
 				} else if errors.Is(err, gorm.ErrRecordNotFound) {
 					e.Hash = &hash
@@ -328,7 +334,8 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 			} else if *model.Hash != hash {
 				var existing db.Model
 				if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil && existing.ID != model.ID {
-					logger.Warn().Str("model", name).Str("existing", existing.Name).Msg("hash conflict for model; using existing")
+					log := logger.With().Str("component", "scan").Str("event", "hash_conflict").Str("model", name).Str("existing", existing.Name).Logger()
+					log.Warn().Msg("")
 					model = &existing
 				} else if errors.Is(err, gorm.ErrRecordNotFound) {
 					model.Hash = &hash
