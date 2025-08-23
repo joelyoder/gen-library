@@ -13,6 +13,12 @@
       />
     </div>
     <div class="col-12 col-lg-9">
+      <Pager
+        :page="page"
+        :page-size="pageSize"
+        :total="total"
+        @change="onPage"
+      />
       <ImageGrid :images="items" @deleted="onDeleted" @metadata="onMetadata" />
       <Pager
         :page="page"
@@ -47,7 +53,7 @@
                 class="col-md-8 d-flex align-items-center justify-content-center bg-black position-relative"
               >
                 <button
-                  v-if="selectedIndex > 0"
+                  v-if="selectedIndex > 0 || page > 1"
                   class="btn btn-dark position-absolute top-50 start-0 translate-middle-y opacity-50"
                   @click="prevImage"
                 >
@@ -67,7 +73,10 @@
                   style="max-height: 100vh; width: auto"
                 />
                 <button
-                  v-if="selectedIndex < items.length - 1"
+                  v-if="
+                    selectedIndex < items.length - 1 ||
+                    page < Math.ceil(total / pageSize)
+                  "
                   class="btn btn-dark position-absolute top-50 end-0 translate-middle-y opacity-50"
                   @click="nextImage"
                 >
@@ -106,7 +115,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watchEffect, watch, onUnmounted } from "vue";
+import { ref, watchEffect, watch, onUnmounted, nextTick } from "vue";
 import {
   listImages,
   scanLibrary,
@@ -139,6 +148,7 @@ const selectedImage = ref<any | null>(null);
 const metadataEditing = ref(false);
 const selectedIndex = ref(-1);
 const reloadKey = ref(0);
+let loadPromise: Promise<void> = Promise.resolve();
 
 function reload() {
   page.value = 1;
@@ -184,12 +194,29 @@ async function showImageAt(idx: number) {
   metadataEditing.value = false;
 }
 
-function prevImage() {
-  showImageAt(selectedIndex.value - 1);
+async function prevImage() {
+  if (selectedIndex.value > 0) {
+    await showImageAt(selectedIndex.value - 1);
+  } else if (page.value > 1) {
+    page.value--;
+    await nextTick();
+    await loadPromise;
+    await showImageAt(items.value.length - 1);
+  }
 }
 
-function nextImage() {
-  showImageAt(selectedIndex.value + 1);
+async function nextImage() {
+  if (selectedIndex.value < items.value.length - 1) {
+    await showImageAt(selectedIndex.value + 1);
+  } else {
+    const totalPages = Math.max(1, Math.ceil(total.value / pageSize.value));
+    if (page.value < totalPages) {
+      page.value++;
+      await nextTick();
+      await loadPromise;
+      await showImageAt(0);
+    }
+  }
 }
 
 async function toggleNsfw() {
@@ -324,20 +351,22 @@ onUnmounted(() => {
   window.removeEventListener("keydown", onKeydown);
 });
 
-watchEffect(async () => {
+watchEffect(() => {
   reloadKey.value;
-  const data = await listImages({
-    page: page.value,
-    pageSize: pageSize.value,
-    q: q.value || undefined,
-    tags: tags.value,
-    nsfw: nsfw.value,
-    sort: sort.value,
-    order: order.value,
-    rating: rating.value ?? undefined,
-    favorite: favoritesOnly.value || undefined,
-  });
-  items.value = data.items;
-  total.value = data.total;
+  loadPromise = (async () => {
+    const data = await listImages({
+      page: page.value,
+      pageSize: pageSize.value,
+      q: q.value || undefined,
+      tags: tags.value,
+      nsfw: nsfw.value,
+      sort: sort.value,
+      order: order.value,
+      rating: rating.value ?? undefined,
+      favorite: favoritesOnly.value || undefined,
+    });
+    items.value = data.items;
+    total.value = data.total;
+  })();
 });
 </script>
