@@ -17,8 +17,10 @@ import (
 
 // setupRouter initializes an in-memory database, seeds test data and returns a gin.Engine.
 func setupRouter(t *testing.T) (*gin.Engine, bool) {
-	gdb, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	gdb, err := gorm.Open(sqlite.Open("file::memory:?cache=shared&_busy_timeout=5000"), &gorm.Config{})
 	require.NoError(t, err)
+	sqlDB, _ := gdb.DB()
+	sqlDB.SetMaxOpenConns(1)
 	require.NoError(t, db.ApplyMigrations(gdb))
 
 	// Seed tags

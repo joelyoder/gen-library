@@ -9,8 +9,10 @@ import (
 )
 
 func TestApplyMigrationsIsIdempotent(t *testing.T) {
-	gdb, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	gdb, err := gorm.Open(sqlite.Open("file::memory:?cache=shared&_busy_timeout=5000"), &gorm.Config{})
 	require.NoError(t, err)
+	sqlDB, _ := gdb.DB()
+	sqlDB.SetMaxOpenConns(1)
 
 	require.NoError(t, ApplyMigrations(gdb))
 	require.NoError(t, ApplyMigrations(gdb))
