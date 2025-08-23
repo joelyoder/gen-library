@@ -36,6 +36,7 @@ func requestIDMiddleware() gin.HandlerFunc {
 
 func main() {
 	logger.Init()
+	defer logger.Close()
 
 	if logger.Level() == zerolog.DebugLevel {
 		gin.SetMode(gin.DebugMode)
