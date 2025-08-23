@@ -52,9 +52,9 @@
   async function onToggleNSFW() {
     const newVal = !props.image.nsfw
     try {
-      await updateImageMetadata(props.image.id, { nsfw: newVal })
-      ;(props.image as any).nsfw = newVal
-      emit('nsfw-changed', { id: props.image.id, nsfw: newVal })
+      const updated = await updateImageMetadata(props.image.id, { nsfw: newVal })
+      ;(props.image as any).nsfw = updated.nsfw
+      emit('nsfw-changed', { id: props.image.id, nsfw: updated.nsfw })
     } catch (err) {
       console.error('Failed to update NSFW status', err)
     }
