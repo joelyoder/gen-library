@@ -15,7 +15,7 @@
         style="position: absolute; top: 0.5rem; right: 0.5rem"
         @click.stop="onToggleNSFW"
       >
-        NSFW
+        <i :class="['bi', image.nsfw ? 'bi-eye-slash' : 'bi-eye']"></i>
       </button>
     </div>
     <div class="card-body p-2">
@@ -50,8 +50,13 @@
   }
 
   async function onToggleNSFW() {
-    const newVal = !props.image.nsfw
-    await updateImageMetadata(props.image.id, { nsfw: newVal })
-    props.image.nsfw = newVal
+    try {
+      const updated = await updateImageMetadata(props.image.id, {
+        nsfw: !props.image.nsfw,
+      })
+      Object.assign(props.image, updated)
+    } catch (err) {
+      console.error('Failed to update NSFW status', err)
+    }
   }
 </script>
