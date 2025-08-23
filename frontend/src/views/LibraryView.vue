@@ -19,7 +19,12 @@
         :total="total"
         @change="onPage"
       />
-      <ImageGrid :images="items" @deleted="onDeleted" @metadata="onMetadata" />
+        <ImageGrid
+          :images="items"
+          @deleted="onDeleted"
+          @metadata="onMetadata"
+          @nsfw-changed="onNsfwChanged"
+        />
       <Pager
         :page="page"
         :page-size="pageSize"
@@ -171,6 +176,16 @@ async function onScan() {
 
 function onDeleted(id: number) {
   items.value = items.value.filter((img) => img.id !== id);
+}
+
+function onNsfwChanged({ id, nsfw: newVal }: { id: number; nsfw: boolean }) {
+  const idx = items.value.findIndex((i) => i.id === id);
+  if (idx !== -1) {
+    items.value[idx].nsfw = newVal;
+    if ((nsfw.value === 'hide' && newVal) || (nsfw.value === 'only' && !newVal)) {
+      items.value.splice(idx, 1);
+    }
+  }
 }
 
 async function onMetadata(img: any) {
