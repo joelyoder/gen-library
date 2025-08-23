@@ -18,6 +18,7 @@ export interface ListParams {
   sort?: "created_time" | "imported_at" | "file_name";
   order?: "asc" | "desc";
   rating?: number;
+  favorite?: boolean;
 }
 
 export async function listImages(params: ListParams) {
@@ -30,6 +31,7 @@ export async function listImages(params: ListParams) {
   p.set("sort", params.sort ?? "created_time");
   p.set("order", params.order ?? "desc");
   if (params.rating !== undefined) p.set("rating", String(params.rating));
+  if (params.favorite) p.set("favorite", "true");
   const { data } = await api.get(`/api/images?${p.toString()}`);
   return data;
 }

@@ -7,6 +7,7 @@
         v-model:sort="sort"
         v-model:order="order"
         v-model:rating="rating"
+        v-model:favorite="favoritesOnly"
         @search="reload"
         @scan="onScan"
       />
@@ -27,7 +28,13 @@
       <div class="modal-dialog modal-fullscreen">
         <div class="modal-content bg-dark text-light">
           <div class="modal-header">
-            <h5 class="modal-title">{{ selectedImage?.fileName }}</h5>
+            <h5 class="modal-title">
+              {{ selectedImage?.fileName }}
+              <i
+                class="bi ms-2"
+                :class="selectedImage?.favorite ? 'bi-star-fill text-warning' : 'bi-star'"
+              ></i>
+            </h5>
             <button
               type="button"
               class="btn-close btn-close-white"
@@ -123,6 +130,7 @@ const tags = ref<string[]>([]);
 const sort = ref<"created_time" | "imported_at" | "file_name">("created_time");
 const order = ref<"asc" | "desc">("desc");
 const rating = ref<number | null>(null);
+const favoritesOnly = ref(false);
 
 const items = ref<any[]>([]);
 const total = ref(0);
@@ -202,6 +210,21 @@ async function toggleNsfw() {
   }
 }
 
+async function toggleFavorite() {
+  if (!selectedImage.value) return;
+  const newVal = !selectedImage.value.favorite;
+  await updateImageMetadata(selectedImage.value.id, { favorite: newVal });
+  selectedImage.value.favorite = newVal;
+  const idx = items.value.findIndex((i) => i.id === selectedImage.value?.id);
+  if (idx !== -1) {
+    if (favoritesOnly.value && !newVal) {
+      items.value.splice(idx, 1);
+    } else {
+      items.value[idx].favorite = newVal;
+    }
+  }
+}
+
 async function setRating(n: number) {
   if (!selectedImage.value) return;
   await updateImageMetadata(selectedImage.value.id, { rating: n });
@@ -224,7 +247,8 @@ async function onMetadataSaved() {
     if (idx !== -1) {
       if (
         (nsfw.value === "hide" && updated.nsfw) ||
-        (nsfw.value === "only" && !updated.nsfw)
+        (nsfw.value === "only" && !updated.nsfw) ||
+        (favoritesOnly.value && !updated.favorite)
       ) {
         items.value.splice(idx, 1);
       } else {
@@ -261,6 +285,10 @@ function onKeydown(e: KeyboardEvent) {
       closeMetadata();
       break;
     case "f":
+      e.preventDefault();
+      toggleFavorite();
+      break;
+    case "n":
       e.preventDefault();
       toggleNsfw();
       break;
@@ -307,6 +335,7 @@ watchEffect(async () => {
     sort: sort.value,
     order: order.value,
     rating: rating.value ?? undefined,
+    favorite: favoritesOnly.value || undefined,
   });
   items.value = data.items;
   total.value = data.total;

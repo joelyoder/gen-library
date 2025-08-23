@@ -9,11 +9,17 @@
       @click="onView"
     />
     <div class="card-body p-2">
-      <div class="d-flex justify-content-end align-items-center gap-1">
-        <span v-if="image.nsfw" class="badge text-bg-danger">NSFW</span>
-        <button class="btn btn-sm btn-outline-danger" @click="onDelete">
-          <i class="bi bi-trash"></i>
-        </button>
+      <div class="d-flex justify-content-between align-items-center">
+        <i
+          v-if="image.favorite"
+          class="bi bi-star-fill text-warning"
+        ></i>
+        <div class="d-flex align-items-center gap-1">
+          <span v-if="image.nsfw" class="badge text-bg-danger">NSFW</span>
+          <button class="btn btn-sm btn-outline-danger" @click="onDelete">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
       </div>
     </div>
   </div>

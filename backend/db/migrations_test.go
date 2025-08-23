@@ -30,4 +30,8 @@ func TestApplyMigrationsIsIdempotent(t *testing.T) {
 	has, err = columnExists(gdb, "images", "model_hash")
 	require.NoError(t, err)
 	require.False(t, has)
+
+	has, err = columnExists(gdb, "images", "favorite")
+	require.NoError(t, err)
+	require.True(t, has)
 }

@@ -29,6 +29,18 @@
         </select>
       </div>
 
+      <div class="form-check mb-3">
+        <input
+          class="form-check-input"
+          type="checkbox"
+          id="favoriteCheck"
+          v-model="localFavorite"
+        />
+        <label class="form-check-label" for="favoriteCheck"
+          >Favorites only</label
+        >
+      </div>
+
       <div class="row g-2">
         <div class="col-6">
           <label class="form-label">Sort</label>
@@ -66,6 +78,7 @@ const props = defineProps<{
   sort: "created_time" | "imported_at" | "file_name";
   order: "asc" | "desc";
   rating: number | null;
+  favorite: boolean;
 }>();
 const emit = defineEmits([
   "update:q",
@@ -73,6 +86,7 @@ const emit = defineEmits([
   "update:sort",
   "update:order",
   "update:rating",
+  "update:favorite",
   "search",
   "scan",
 ]);
@@ -93,6 +107,11 @@ const localOrder = computed({
 const localRating = computed({
   get: () => (props.rating == null ? "" : String(props.rating)),
   set: (v) => emit("update:rating", v === "" ? null : Number(v)),
+});
+
+const localFavorite = computed({
+  get: () => props.favorite,
+  set: (v) => emit("update:favorite", v),
 });
 
 const tagsCsv = computed({

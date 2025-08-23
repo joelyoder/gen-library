@@ -38,9 +38,10 @@ type Image struct {
 	RefinerUpscale           *float64 `json:"refinerUpscale"`
 	RefinerUpscaleMethod     *string  `json:"refinerUpscaleMethod"`
 
-	Rating int  `gorm:"default:0" json:"rating"`
-	NSFW   bool `gorm:"default:false" json:"nsfw"`
-	Hidden bool `gorm:"default:false" json:"hidden"`
+	Rating   int  `gorm:"default:0" json:"rating"`
+	NSFW     bool `gorm:"default:false" json:"nsfw"`
+	Hidden   bool `gorm:"default:false" json:"hidden"`
+	Favorite bool `gorm:"default:false" json:"favorite"`
 
 	RawMetadata datatypes.JSON `json:"rawMetadata"`
 
