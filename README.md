@@ -1,6 +1,14 @@
 # gen-library
 Image organizer for local generation
 
+## Backend configuration
+
+The backend logger can be configured with environment variables:
+
+| Variable   | Description                                            |
+|------------|--------------------------------------------------------|
+| `LOG_LEVEL` | Sets the log verbosity. Accepts `debug`, `info` (default), `warn`, or `error`. |
+
 ## Todo
 
 ### Metadata

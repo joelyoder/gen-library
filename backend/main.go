@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 
+	"github.com/rs/zerolog"
 	"gorm.io/gorm"
 
 	"gen-library/backend/api"
@@ -19,6 +20,12 @@ import (
 
 func main() {
 	logger.Init()
+
+	if logger.Level() == zerolog.DebugLevel {
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
 
 	dbConn, err := gorm.Open(sqlite.Open("library.db"), &gorm.Config{})
 	if err != nil {
