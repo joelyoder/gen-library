@@ -26,7 +26,6 @@ To enable file logging, set `LOG_FILE` to a file name. For example, `LOG_FILE=ba
 
 ### Gallery
 - Change NSFW button to indicator that can toggle NSFW status on the fly
-- Update pager to match Model Manager and add it to the top of the page
 
 ### Misc
 - Add icon instead of app name
