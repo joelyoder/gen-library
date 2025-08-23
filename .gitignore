@@ -32,3 +32,4 @@ go.work.sum
 # .vscode/
 backend/library.db
 backend/.cache/
+backend/logs/*
