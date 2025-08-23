@@ -8,6 +8,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
+	"github.com/google/uuid"
 
 	"github.com/rs/zerolog"
 	"gorm.io/gorm"
@@ -17,6 +18,18 @@ import (
 	"gen-library/backend/logger"
 	"gen-library/backend/scan"
 )
+
+func requestIDMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.GetHeader("X-Request-ID")
+		if id == "" {
+			id = uuid.New().String()
+		}
+		c.Set("RequestID", id)
+		c.Writer.Header().Set("X-Request-ID", id)
+		c.Next()
+	}
+}
 
 func main() {
 	logger.Init()
@@ -45,8 +58,23 @@ func main() {
 		go scan.StartWatcher(root, dbConn)
 	}
 
-	r := gin.Default()
+	r := gin.New()
 	r.SetTrustedProxies(nil) // fix "trusted all proxies" warning
+	r.Use(requestIDMiddleware())
+	r.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+		evt := logger.Info().
+			Str("method", param.Method).
+			Str("path", param.Path).
+			Int("status", param.StatusCode).
+			Dur("latency", param.Latency).
+			Str("client_ip", param.ClientIP)
+		if id, ok := param.Keys["RequestID"].(string); ok {
+			evt.Str("request_id", id)
+		}
+		evt.Msg("request")
+		return ""
+	}))
+	r.Use(gin.Recovery())
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5174"},
