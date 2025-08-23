@@ -32,7 +32,7 @@ func setupRouter(t *testing.T) (*gin.Engine, bool) {
 	require.NoError(t, gdb.Create(&tagFlower).Error)
 
 	// Seed images
-	imgCat := db.Image{Path: "cat.jpg", FileName: "cat", Ext: "jpg", SizeBytes: 1, SHA256: "sha1", NSFW: false, Tags: []*db.Tag{&tagAnimal, &tagCat}}
+	imgCat := db.Image{Path: "cat.jpg", FileName: "cat", Ext: "jpg", SizeBytes: 1, SHA256: "sha1", NSFW: false, Favorite: true, Tags: []*db.Tag{&tagAnimal, &tagCat}}
 	imgDog := db.Image{Path: "dog.jpg", FileName: "dog", Ext: "jpg", SizeBytes: 1, SHA256: "sha2", NSFW: true, Tags: []*db.Tag{&tagAnimal, &tagDog}}
 	imgSun := db.Image{Path: "sunflower.jpg", FileName: "sunflower", Ext: "jpg", SizeBytes: 1, SHA256: "sha3", NSFW: false, Tags: []*db.Tag{&tagFlower}}
 	require.NoError(t, gdb.Create(&imgCat).Error)
@@ -99,5 +99,10 @@ func TestListImagesFilters(t *testing.T) {
 
 		names = getFileNames(t, r, "/api/images?tags=animal,flower&nsfw=show")
 		require.Empty(t, names)
+	})
+
+	t.Run("favorite filter", func(t *testing.T) {
+		names := getFileNames(t, r, "/api/images?favorite=true&nsfw=show")
+		require.ElementsMatch(t, []string{"cat"}, names)
 	})
 }

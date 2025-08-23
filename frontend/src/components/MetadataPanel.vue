@@ -119,6 +119,16 @@
         <input
           class="form-check-input"
           type="checkbox"
+          id="favoriteCheck"
+          v-model="form.favorite"
+        />
+        <label class="form-check-label" for="favoriteCheck">Favorite</label>
+      </div>
+
+      <div class="form-check form-switch mb-3">
+        <input
+          class="form-check-input"
+          type="checkbox"
           id="nsfwCheck"
           v-model="form.nsfw"
         />
@@ -168,6 +178,7 @@ const form = reactive({
   clipSkip: "" as any,
   sourceApp: "",
   nsfw: false,
+  favorite: false,
 });
 
 const tags = ref<string[]>([]);
@@ -189,6 +200,7 @@ watch(
     form.clipSkip = img?.clipSkip ?? "";
     form.sourceApp = img?.sourceApp ?? "";
     form.nsfw = !!img?.nsfw;
+    form.favorite = !!img?.favorite;
     form.rating = img?.rating ?? 0;
     tags.value = img?.tags?.map((t: any) => t.name) ?? [];
     loras.value =
@@ -228,6 +240,7 @@ async function onSave() {
       .filter((l) => l.name || l.hash)
       .map((l) => ({ name: l.name, hash: l.hash, weight: l.weight })),
     nsfw: form.nsfw,
+    favorite: form.favorite,
   };
   await updateImageMetadata(props.image.id, payload);
   emit("saved");

@@ -35,6 +35,7 @@ type imageDTO struct {
 	Prompt    *string `json:"prompt"`
 	Rating    int     `json:"rating"`
 	NSFW      bool    `json:"nsfw"`
+	Favorite  bool    `json:"favorite"`
 	ThumbURL  string  `json:"thumbUrl"`
 }
 
@@ -97,6 +98,10 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 			}
 		}
 
+		if fav := c.Query("favorite"); fav == "1" || strings.ToLower(fav) == "true" {
+			img = img.Where("images.favorite = 1")
+		}
+
 		// Tag filter: require ALL tags
 		if len(tags) > 0 {
 			sub := gdb.Table("image_tags it").
@@ -118,7 +123,7 @@ func listImages(gdb *gorm.DB) gin.HandlerFunc {
 		// Select page
 		rows := []imageDTO{}
 		qimg := img.Order("images." + sort + " " + strings.ToUpper(order)).
-			Select("images.id, images.path, images.file_name, images.ext, images.width, images.height, models.name AS model_name, images.prompt, images.rating, images.nsfw").
+			Select("images.id, images.path, images.file_name, images.ext, images.width, images.height, models.name AS model_name, images.prompt, images.rating, images.nsfw, images.favorite").
 			Limit(pageSize).Offset((page - 1) * pageSize)
 
 		if err := qimg.Scan(&rows).Error; err != nil {

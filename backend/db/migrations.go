@@ -47,6 +47,7 @@ func ApplyMigrations(gdb *gorm.DB) error {
                         rating INTEGER DEFAULT 0,
                         nsfw INTEGER DEFAULT 0,
                         hidden INTEGER DEFAULT 0,
+                        favorite INTEGER DEFAULT 0,
                         raw_metadata TEXT,
                         FOREIGN KEY (model_id) REFERENCES models(id)
                 );`,
@@ -95,6 +96,7 @@ func ApplyMigrations(gdb *gorm.DB) error {
 		`CREATE INDEX IF NOT EXISTS images_nsfw_idx ON images(nsfw);`,
 		`CREATE INDEX IF NOT EXISTS images_rating_idx ON images(rating);`,
 		`CREATE INDEX IF NOT EXISTS images_model_idx ON images(model_id);`,
+		`CREATE INDEX IF NOT EXISTS images_favorite_idx ON images(favorite);`,
 		`CREATE INDEX IF NOT EXISTS models_hash_idx ON models(hash);`,
 		`CREATE INDEX IF NOT EXISTS image_tags_image_idx ON image_tags(image_id);`,
 		`CREATE INDEX IF NOT EXISTS image_tags_tag_idx ON image_tags(tag_id);`,
@@ -150,6 +152,14 @@ func ApplyMigrations(gdb *gorm.DB) error {
 	} else if exists {
 		if err := gdb.Exec(`ALTER TABLE images DROP COLUMN model_hash;`).Error; err != nil {
 			return fmt.Errorf("failed dropping images.model_hash: %w", err)
+		}
+	}
+
+	if exists, err := columnExists(gdb, "images", "favorite"); err != nil {
+		return err
+	} else if !exists {
+		if err := gdb.Exec(`ALTER TABLE images ADD COLUMN favorite INTEGER DEFAULT 0;`).Error; err != nil {
+			return fmt.Errorf("failed adding images.favorite: %w", err)
 		}
 	}
 

@@ -16,6 +16,7 @@
       {{ props.image.width }}x{{ props.image.height }}
     </p>
     <p><strong>NSFW:</strong> {{ props.image.nsfw ? "Yes" : "No" }}</p>
+    <p><strong>Favorite:</strong> {{ props.image.favorite ? "Yes" : "No" }}</p>
     <div>
       <strong>Loras:</strong>
       <div v-if="props.image.loras && props.image.loras.length">
