@@ -1,6 +1,3 @@
-//go:build main
-// +build main
-
 package main
 
 import (
@@ -35,6 +32,10 @@ func requestIDMiddleware() gin.HandlerFunc {
 }
 
 func main() {
+	if os.Getenv("GENLIBRARY_SKIP_SERVER") != "" {
+		return
+	}
+
 	logger.Init()
 
 	if logger.Level() == zerolog.DebugLevel {
