@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,6 +19,7 @@ import (
 	"gorm.io/gorm"
 
 	"gen-library/backend/db"
+	"gen-library/backend/logger"
 	"gen-library/backend/scan"
 	"gen-library/backend/util"
 )
@@ -221,7 +221,7 @@ func updateMetadata(gdb *gorm.DB) gin.HandlerFunc {
 							if hash != "" {
 								var existing db.Lora
 								if err := gdb.Where("hash = ?", hash).First(&existing).Error; err == nil {
-									log.Printf("hash conflict for lora %s; using existing %s", name, existing.Name)
+									logger.Warn().Str("lora", name).Str("existing", existing.Name).Msg("hash conflict for lora; using existing")
 									l = existing
 								} else if errors.Is(err, gorm.ErrRecordNotFound) {
 									l = db.Lora{Name: name}
@@ -258,7 +258,7 @@ func updateMetadata(gdb *gorm.DB) gin.HandlerFunc {
 						} else if *l.Hash != hash {
 							var existing db.Lora
 							if err := gdb.Where("hash = ?", hash).First(&existing).Error; err == nil && existing.ID != l.ID {
-								log.Printf("hash conflict for lora %s; using existing %s", name, existing.Name)
+								logger.Warn().Str("lora", name).Str("existing", existing.Name).Msg("hash conflict for lora; using existing")
 								l = existing
 							} else if errors.Is(err, gorm.ErrRecordNotFound) {
 								l.Hash = &hash

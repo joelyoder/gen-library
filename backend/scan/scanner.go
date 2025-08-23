@@ -10,7 +10,6 @@ import (
 	_ "image/png"  // register PNG decoder
 	"io"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -23,6 +22,7 @@ import (
 	"gorm.io/gorm"
 
 	"gen-library/backend/db"
+	"gen-library/backend/logger"
 	"gen-library/backend/util"
 
 	"github.com/rwcarlsen/goexif/exif"
@@ -58,7 +58,7 @@ func ScanFolder(gdb *gorm.DB, root string) (int, error) {
 			added, err := processFile(tx, absRoot, path, ext)
 			if err != nil {
 				// Log and continue scanning
-				log.Printf("scan: %v", err)
+				logger.Warn().Err(err).Msg("scan")
 				return nil
 			}
 			if added {
@@ -131,7 +131,7 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	metaMap, err := extractMetadata(path, ext)
 	if err != nil {
 		// non-fatal, continue with what we have
-		log.Printf("metadata error %s: %v", path, err)
+		logger.Warn().Str("path", path).Err(err).Msg("metadata error")
 		metaMap = map[string]string{}
 	}
 
@@ -165,7 +165,7 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 				if hash != "" {
 					var existing db.Lora
 					if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil {
-						log.Printf("hash conflict for lora %s; using existing %s", name, existing.Name)
+						logger.Warn().Str("lora", name).Str("existing", existing.Name).Msg("hash conflict for lora; using existing")
 						l = existing
 					} else {
 						l = db.Lora{Name: name}
@@ -192,7 +192,7 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 			} else if *l.Hash != hash {
 				var existing db.Lora
 				if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil && existing.ID != l.ID {
-					log.Printf("hash conflict for lora %s; using existing %s", name, existing.Name)
+					logger.Warn().Str("lora", name).Str("existing", existing.Name).Msg("hash conflict for lora; using existing")
 					l = existing
 				} else if errors.Is(err, gorm.ErrRecordNotFound) {
 					l.Hash = &hash
@@ -247,7 +247,7 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 				if hash != "" {
 					var existing db.Embedding
 					if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil {
-						log.Printf("hash conflict for embedding %s; using existing %s", name, existing.Name)
+						logger.Warn().Str("embedding", name).Str("existing", existing.Name).Msg("hash conflict for embedding; using existing")
 						e = existing
 					} else {
 						e = db.Embedding{Name: name}
@@ -274,7 +274,7 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 			} else if *e.Hash != hash {
 				var existing db.Embedding
 				if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil && existing.ID != e.ID {
-					log.Printf("hash conflict for embedding %s; using existing %s", name, existing.Name)
+					logger.Warn().Str("embedding", name).Str("existing", existing.Name).Msg("hash conflict for embedding; using existing")
 					e = existing
 				} else if errors.Is(err, gorm.ErrRecordNotFound) {
 					e.Hash = &hash
@@ -328,7 +328,7 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 			} else if *model.Hash != hash {
 				var existing db.Model
 				if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil && existing.ID != model.ID {
-					log.Printf("hash conflict for model %s; using existing %s", name, existing.Name)
+					logger.Warn().Str("model", name).Str("existing", existing.Name).Msg("hash conflict for model; using existing")
 					model = &existing
 				} else if errors.Is(err, gorm.ErrRecordNotFound) {
 					model.Hash = &hash
@@ -809,7 +809,7 @@ type promptLora struct {
 }
 
 func extractPromptLoras(s string) []promptLora {
-        re := regexp.MustCompile(`<(?:lora|lyco):([^:>]+)(?::([0-9.]+))?>`)
+	re := regexp.MustCompile(`<(?:lora|lyco):([^:>]+)(?::([0-9.]+))?>`)
 	matches := re.FindAllStringSubmatch(s, -1)
 	res := make([]promptLora, 0, len(matches))
 	for _, m := range matches {

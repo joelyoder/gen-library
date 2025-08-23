@@ -2,7 +2,6 @@ package scan
 
 import (
 	"context"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +10,8 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"gorm.io/gorm"
+
+	"gen-library/backend/logger"
 )
 
 var (
@@ -56,7 +57,7 @@ func IsWatcherRunning() bool {
 func runWatcher(ctx context.Context, root string, gdb *gorm.DB) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		log.Printf("watcher: %v", err)
+		logger.Error().Err(err).Msg("watcher")
 		return
 	}
 	defer watcher.Close()
@@ -68,7 +69,7 @@ func runWatcher(ctx context.Context, root string, gdb *gorm.DB) {
 		}
 		if d.IsDir() {
 			if werr := watcher.Add(path); werr != nil {
-				log.Printf("watcher add %s: %v", path, werr)
+				logger.Warn().Str("path", path).Err(werr).Msg("watcher add")
 			}
 		}
 		return nil
@@ -86,7 +87,7 @@ func runWatcher(ctx context.Context, root string, gdb *gorm.DB) {
 				fi, err := os.Stat(event.Name)
 				if err == nil && fi.IsDir() {
 					if werr := watcher.Add(event.Name); werr != nil {
-						log.Printf("watcher add %s: %v", event.Name, werr)
+						logger.Warn().Str("path", event.Name).Err(werr).Msg("watcher add")
 					}
 					continue
 				}
@@ -96,7 +97,7 @@ func runWatcher(ctx context.Context, root string, gdb *gorm.DB) {
 					go func(p string) {
 						time.Sleep(500 * time.Millisecond)
 						if _, err := ScanFile(gdb, root, p); err != nil {
-							log.Printf("scan file %s: %v", p, err)
+							logger.Warn().Str("file", p).Err(err).Msg("scan file")
 						}
 					}(event.Name)
 				}
@@ -105,7 +106,7 @@ func runWatcher(ctx context.Context, root string, gdb *gorm.DB) {
 			if !ok {
 				return
 			}
-			log.Printf("watcher error: %v", err)
+			logger.Error().Err(err).Msg("watcher error")
 		}
 	}
 }
