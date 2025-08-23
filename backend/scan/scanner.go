@@ -10,7 +10,6 @@ import (
 	_ "image/png"  // register PNG decoder
 	"io"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -58,7 +57,7 @@ func ScanFolder(gdb *gorm.DB, root string) (int, error) {
 			added, err := processFile(tx, absRoot, path, ext)
 			if err != nil {
 				// Log and continue scanning
-				log.Printf("scan: %v", err)
+				logger.With("component", "scan", "path", path).Warn("scan", "err", err)
 				return nil
 			}
 			if added {
@@ -131,7 +130,7 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	metaMap, err := extractMetadata(path, ext)
 	if err != nil {
 		// non-fatal, continue with what we have
-		log.Printf("metadata error %s: %v", path, err)
+		logger.With("component", "scan", "path", path).Warn("metadata", "err", err)
 		metaMap = map[string]string{}
 	}
 
@@ -165,7 +164,12 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 				if hash != "" {
 					var existing db.Lora
 					if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil {
-						log.Printf("hash conflict for lora %s; using existing %s", name, existing.Name)
+						logger.With(
+							"component", "scan",
+							"path", path,
+							"lora", name,
+							"existing", existing.Name,
+						).Warn("hash conflict for lora")
 						l = existing
 					} else {
 						l = db.Lora{Name: name}
@@ -192,7 +196,12 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 			} else if *l.Hash != hash {
 				var existing db.Lora
 				if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil && existing.ID != l.ID {
-					log.Printf("hash conflict for lora %s; using existing %s", name, existing.Name)
+					logger.With(
+						"component", "scan",
+						"path", path,
+						"lora", name,
+						"existing", existing.Name,
+					).Warn("hash conflict for lora")
 					l = existing
 				} else if errors.Is(err, gorm.ErrRecordNotFound) {
 					l.Hash = &hash
@@ -247,7 +256,12 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 				if hash != "" {
 					var existing db.Embedding
 					if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil {
-						log.Printf("hash conflict for embedding %s; using existing %s", name, existing.Name)
+						logger.With(
+							"component", "scan",
+							"path", path,
+							"embedding", name,
+							"existing", existing.Name,
+						).Warn("hash conflict for embedding")
 						e = existing
 					} else {
 						e = db.Embedding{Name: name}
@@ -274,7 +288,12 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 			} else if *e.Hash != hash {
 				var existing db.Embedding
 				if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil && existing.ID != e.ID {
-					log.Printf("hash conflict for embedding %s; using existing %s", name, existing.Name)
+					logger.With(
+						"component", "scan",
+						"path", path,
+						"embedding", name,
+						"existing", existing.Name,
+					).Warn("hash conflict for embedding")
 					e = existing
 				} else if errors.Is(err, gorm.ErrRecordNotFound) {
 					e.Hash = &hash
@@ -328,7 +347,12 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 			} else if *model.Hash != hash {
 				var existing db.Model
 				if err := tx.Where("hash = ?", hash).First(&existing).Error; err == nil && existing.ID != model.ID {
-					log.Printf("hash conflict for model %s; using existing %s", name, existing.Name)
+					logger.With(
+						"component", "scan",
+						"path", path,
+						"model", name,
+						"existing", existing.Name,
+					).Warn("hash conflict for model")
 					model = &existing
 				} else if errors.Is(err, gorm.ErrRecordNotFound) {
 					model.Hash = &hash
@@ -809,7 +833,7 @@ type promptLora struct {
 }
 
 func extractPromptLoras(s string) []promptLora {
-        re := regexp.MustCompile(`<(?:lora|lyco):([^:>]+)(?::([0-9.]+))?>`)
+	re := regexp.MustCompile(`<(?:lora|lyco):([^:>]+)(?::([0-9.]+))?>`)
 	matches := re.FindAllStringSubmatch(s, -1)
 	res := make([]promptLora, 0, len(matches))
 	for _, m := range matches {
