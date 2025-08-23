@@ -1,19 +1,59 @@
 package scan
 
 import (
+	"context"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"gorm.io/gorm"
 )
 
+var (
+	watchMu sync.Mutex
+	cancel  context.CancelFunc
+)
+
 // StartWatcher monitors the root directory for new or modified images and
-// updates the database accordingly. It runs until the process exits.
+// updates the database accordingly. It runs until StopWatcher is called.
 func StartWatcher(root string, gdb *gorm.DB) {
+	watchMu.Lock()
+	if cancel != nil {
+		watchMu.Unlock()
+		return // already running
+	}
+	var ctx context.Context
+	ctx, cancel = context.WithCancel(context.Background())
+	watchMu.Unlock()
+
+	runWatcher(ctx, root, gdb)
+
+	watchMu.Lock()
+	cancel = nil
+	watchMu.Unlock()
+}
+
+// StopWatcher stops the background watcher if it's running.
+func StopWatcher() {
+	watchMu.Lock()
+	defer watchMu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+}
+
+// IsWatcherRunning returns true if the watcher is currently active.
+func IsWatcherRunning() bool {
+	watchMu.Lock()
+	defer watchMu.Unlock()
+	return cancel != nil
+}
+
+func runWatcher(ctx context.Context, root string, gdb *gorm.DB) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Printf("watcher: %v", err)
@@ -36,6 +76,8 @@ func StartWatcher(root string, gdb *gorm.DB) {
 
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case event, ok := <-watcher.Events:
 			if !ok {
 				return

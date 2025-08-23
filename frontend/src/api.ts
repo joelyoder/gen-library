@@ -76,3 +76,18 @@ export async function removeTags(id: number, tags: string[]) {
   });
   return data;
 }
+
+export async function getWatcherStatus(): Promise<boolean> {
+  const { data } = await api.get("/api/watcher");
+  return data.running;
+}
+
+export async function startWatcher() {
+  const { data } = await api.post("/api/watcher/start");
+  return data.running;
+}
+
+export async function stopWatcher() {
+  const { data } = await api.post("/api/watcher/stop");
+  return data.running;
+}
