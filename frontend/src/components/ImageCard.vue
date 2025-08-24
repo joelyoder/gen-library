@@ -9,14 +9,6 @@
         loading="lazy"
         @click="onView"
       />
-      <button
-        class="btn btn-sm"
-        :class="image.nsfw ? 'btn-danger' : 'btn-outline-danger'"
-        style="position: absolute; top: 0.5rem; right: 0.5rem"
-        @click.stop="onToggleNSFW"
-      >
-        <i :class="['bi', image.nsfw ? 'bi-eye-slash-fill' : 'bi-eye-fill']"></i>
-      </button>
     </div>
     <div class="card-body p-2">
       <div class="d-flex justify-content-between align-items-center">
@@ -25,7 +17,14 @@
           class="bi bi-star-fill text-warning"
         ></i>
         <div class="d-flex align-items-center">
-          <button class="btn btn-sm btn-outline-danger" @click="onDelete">
+          <button
+            class="btn btn-sm"
+            :class="image.nsfw ? 'btn-danger' : 'btn-outline-secondary'"
+            @click.stop="onToggleNSFW"
+          >
+            <i :class="['bi', image.nsfw ? 'bi-eye-slash-fill' : 'bi-eye-fill']"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-danger ms-1" @click="onDelete">
             <i class="bi bi-trash"></i>
           </button>
         </div>
