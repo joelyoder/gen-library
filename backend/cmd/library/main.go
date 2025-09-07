@@ -53,6 +53,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Limit to a single connection to avoid concurrent writes blocking each other
+	sqlDB, err := dbConn.DB()
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to get db handle")
+		os.Exit(1)
+	}
+	sqlDB.SetMaxOpenConns(1)
+	sqlDB.SetMaxIdleConns(1)
+
 	if err := db.ApplyMigrations(dbConn); err != nil {
 		logger.Error().Err(err).Msg("migrations failed")
 		os.Exit(1)
