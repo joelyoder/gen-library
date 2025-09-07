@@ -33,3 +33,4 @@ go.work.sum
 backend/library.db
 backend/.cache/
 backend/logs/*
+backend/library.db-journal
