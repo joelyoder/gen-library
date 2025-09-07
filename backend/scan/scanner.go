@@ -39,41 +39,38 @@ func ScanFolder(gdb *gorm.DB, root string) (int, error) {
 		return 0, err
 	}
 
-	err = gdb.Transaction(func(tx *gorm.DB) error {
-		walkErr := filepath.WalkDir(absRoot, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if d.IsDir() {
-				return nil
-			}
-
-			ext := strings.ToLower(filepath.Ext(d.Name()))
-			switch ext {
-			case ".png", ".jpg", ".jpeg", ".webp":
-			default:
-				return nil
-			}
-
-			added, err := processFile(tx, absRoot, path, ext)
-			if err != nil {
-				// Log and continue scanning
-				log := logger.With().Str("component", "scan").Str("path", path).Str("event", "scan").Logger()
-				log.Warn().Err(err).Msg("")
-				return nil
-			}
-			if added {
-				count++
-			}
+	walkErr := filepath.WalkDir(absRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
 			return nil
-		})
-		if walkErr != nil {
-			return walkErr
+		}
+
+		ext := strings.ToLower(filepath.Ext(d.Name()))
+		switch ext {
+		case ".png", ".jpg", ".jpeg", ".webp":
+		default:
+			return nil
+		}
+
+		added, err := processFile(gdb, absRoot, path, ext)
+		if err != nil {
+			// Log and continue scanning
+			log := logger.With().Str("component", "scan").Str("path", path).Str("event", "scan").Logger()
+			log.Error().Err(err).Msg("failed to add image to library")
+			return nil
+		}
+		if added {
+			count++
 		}
 		return nil
 	})
+	if walkErr != nil {
+		return count, walkErr
+	}
 
-	return count, err
+	return count, nil
 }
 
 // ScanFile imports or updates a single image file without walking directories.
@@ -465,6 +462,8 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	}
 
 	if err := tx.Create(&img).Error; err != nil {
+		log := logger.With().Str("component", "scan").Str("path", path).Str("event", "db_insert").Logger()
+		log.Error().Err(err).Msg("failed to insert image record")
 		return false, err
 	}
 	if len(loraAssocs) > 0 {

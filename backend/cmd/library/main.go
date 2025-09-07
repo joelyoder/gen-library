@@ -45,11 +45,22 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	dbConn, err := gorm.Open(sqlite.Open("library.db"), &gorm.Config{})
+	// Set a busy timeout and enable WAL to reduce "database is locked" errors
+	dsn := "file:library.db?_busy_timeout=5000&_journal_mode=WAL"
+	dbConn, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to open database")
 		os.Exit(1)
 	}
+
+	// Limit to a single connection to avoid concurrent writes blocking each other
+	sqlDB, err := dbConn.DB()
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to get db handle")
+		os.Exit(1)
+	}
+	sqlDB.SetMaxOpenConns(1)
+	sqlDB.SetMaxIdleConns(1)
 
 	if err := db.ApplyMigrations(dbConn); err != nil {
 		logger.Error().Err(err).Msg("migrations failed")
