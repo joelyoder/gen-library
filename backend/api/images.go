@@ -196,19 +196,38 @@ func serveImage(gdb *gorm.DB) gin.HandlerFunc {
 }
 
 func updateMetadata(gdb *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		id := c.Param("id")
-		var payload map[string]any
-		if err := c.BindJSON(&payload); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
+        return func(c *gin.Context) {
+                id := c.Param("id")
+                var payload map[string]any
+                if err := c.BindJSON(&payload); err != nil {
+                        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+                        return
+                }
 
-		var (
-			loras        []*db.Lora
-			lorasPresent bool
-			modelID      *uint
-		)
+               // Normalize NSFW value to a proper boolean if present
+               if v, ok := payload["nsfw"]; ok {
+                       switch val := v.(type) {
+                       case float64:
+                               payload["nsfw"] = val != 0
+                       case string:
+                               b, err := strconv.ParseBool(val)
+                               if err == nil {
+                                       payload["nsfw"] = b
+                               } else {
+                                       delete(payload, "nsfw")
+                               }
+                       case bool:
+                               // already correct type
+                       default:
+                               delete(payload, "nsfw")
+                       }
+               }
+
+                var (
+                        loras        []*db.Lora
+                        lorasPresent bool
+                        modelID      *uint
+                )
 		if raw, ok := payload["loras"]; ok {
 			lorasPresent = true
 			delete(payload, "loras")
