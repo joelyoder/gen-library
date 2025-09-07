@@ -58,7 +58,7 @@ func ScanFolder(gdb *gorm.DB, root string) (int, error) {
 		if err != nil {
 			// Log and continue scanning
 			log := logger.With().Str("component", "scan").Str("path", path).Str("event", "scan").Logger()
-			log.Warn().Err(err).Msg("")
+			log.Error().Err(err).Msg("failed to add image to library")
 			return nil
 		}
 		if added {
@@ -462,6 +462,8 @@ func processFile(tx *gorm.DB, root, path, ext string) (bool, error) {
 	}
 
 	if err := tx.Create(&img).Error; err != nil {
+		log := logger.With().Str("component", "scan").Str("path", path).Str("event", "db_insert").Logger()
+		log.Error().Err(err).Msg("failed to insert image record")
 		return false, err
 	}
 	if len(loraAssocs) > 0 {
